@@ -10,6 +10,8 @@ var img = new Image();
 // Set the source of the image
 img.src = "./img.jpg";
 
+var sampledColors = [[212, 188, 138]];
+
 // Function to convert RGB to HSL (FROM 0 - 255)
 const rgbToHsl = (r, g, b) => {
     r /= 255;
@@ -113,8 +115,45 @@ const getUpdatedImageData = () => {
     return imageData
 }
 
-var sampledColors = [[212, 188, 138]];
+const drawCircleOnCanvas = (x, y, radius = 20) => {
+    ctx.fillStyle = "red";
+    
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.strokeStyle = "black";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+}
 
+const downloadCanvasAsJPEG = () => {
+    // Convert the canvas to a base64-encoded JPEG image
+    var dataURL = canvas.toDataURL("image/jpeg");
+
+    // Create a download link for the image file
+    var downloadLink = document.createElement("a");
+    downloadLink.href = dataURL;
+    downloadLink.download = "myImage.jpg"; // Set the filename of the downloaded file
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+}
+
+const getMouseClickPosition = (e) => {
+    // DUE TO THE CANVAS BEING SCALED BY CSS
+    // GETTING THE REAL SIZE IS REQUIRED BEFORE DETERMINING THE MOUSE CLICK
+    let realWidth = canvas.getBoundingClientRect().width;
+    let realHeight = canvas.getBoundingClientRect().height;
+
+    let clickXWithoutScale = e.x - canvas.offsetLeft;
+    let clickYWithoutScale = e.y - canvas.offsetTop;
+
+    let mouseX = Math.floor(clickXWithoutScale * (canvas.width / realWidth));
+    let mouseY = Math.floor(clickYWithoutScale * (canvas.height / realHeight));
+
+    return {mouseX, mouseY}
+
+}
 
 // Once the image has loaded, draw it onto the canvas
 img.onload = function() {
@@ -123,20 +162,17 @@ img.onload = function() {
     var height = img.naturalHeight;
 
     // Set the size of the canvas to match the image size
-    canvas.width = width / 2;
-    canvas.height = height / 2;
+    canvas.width = width;
+    canvas.height = height;
 
     // // Draw the scaled-down image onto the canvas
-    ctx.drawImage(img, 0, 0, width / 2, height / 2);
-
-    ctx.putImageData(getUpdatedImageData(), 0, 0);
+    ctx.drawImage(img, 0, 0, width, height);
 };
 
 // Add an event listener for mouse clicks on the canvas
 canvas.addEventListener("click", function(event) {
-    // Get the x and y coordinates of the click relative to the canvas
-    var mouseX = event.offsetX;
-    var mouseY = event.offsetY;
+    // GET REAL CLICK PIXEL
+    let {mouseX, mouseY} = getMouseClickPosition(event);
 
     // Get the pixel color data at the clicked point
     var pixelData = ctx.getImageData(mouseX, mouseY, 1, 1).data;
@@ -145,6 +181,13 @@ canvas.addEventListener("click", function(event) {
     var red = pixelData[0];
     var green = pixelData[1];
     var blue = pixelData[2];
+
+    sampledColors[0] = [red, green, blue]
+    ctx.putImageData(getUpdatedImageData(), 0, 0);
+
+    // drawCircleOnCanvas(mouseX, mouseY)
+
+    document.querySelector(".clicked-color").setAttribute("style", `background-color: rgb(${red}, ${green}, ${blue});`)
 
     // Display the color in the console
     console.log("Clicked color: rgb(" + red + ", " + green + ", " + blue + ")");

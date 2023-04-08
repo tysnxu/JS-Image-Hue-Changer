@@ -10,3 +10,11 @@ body{
 #myCanvas{
     width: 100%;
 }
+
+.clicked-color{
+    background-color: white;
+    border: black 1px solid;
+
+    width: 4rem;
+    height: 4rem;
+}
