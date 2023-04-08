@@ -1,0 +1,12 @@
+body{
+    margin: 0;
+    overflow: hidden;
+}
+
+.canvas-holder{
+    width: 100vw;
+}
+
+#myCanvas{
+    width: 100%;
+}
