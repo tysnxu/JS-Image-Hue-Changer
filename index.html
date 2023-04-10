@@ -9,13 +9,17 @@
     <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-    <div class="canvas-holder">
-        <canvas id="myCanvas"></canvas>
+    <div class="canvas-holder" data-image-direction="horizontal">
+        <div class="canvas-holder-inner">
+            <!-- USE ASPECT RATIO AND THE HEIGHT 100%? -->
+            <div class="indicator-holder"></div>
+            <canvas id="myCanvas"></canvas>
+        </div>
     </div>
-    <div class="clicked-color"></div>
+    <button class="plus-btn">+</button>
+    <button class="minus-btn">-</button>
     <button onclick="downloadCanvasAsJPEG()">download as jpg</button>
-
-
+    <button onclick="toggleIndicatorDisplay()">Toggle Visualizer</button>
     <button>SHOW MATTE</button>
 </body>
 </html>

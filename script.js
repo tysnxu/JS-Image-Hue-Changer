@@ -1,16 +1,38 @@
+const indicatorHolderElement = document.querySelector(".indicator-holder");
+const canvasHolder = document.querySelector(".canvas-holder")
+
 // Get the canvas element and context
-var canvas = document.getElementById("myCanvas");
+const canvas = document.getElementById("myCanvas");
 var ctx = canvas.getContext("2d", {willReadFrequently : true});
 
 var showMatte = false;
+var showVisualizer = true;
+
+var currentHolderDirection = "horizontal";
 
 // Create a new image object
 var img = new Image();
 
 // Set the source of the image
 img.src = "./img.jpg";
+// img.src = "./2.jpg";
+
+var imageWidth;
+var imageHeight;
+var imageAspectRatio;
+
 
 var sampledColors = [[212, 188, 138]];
+
+var colorSource = [{
+    position: [1, 2],
+    color: [0.1, 0.1, 0.1],
+    threshold: {
+        hue: 0.1,
+        sat: 0.1,
+        bri: 0.1
+    }
+}]
 
 // Function to convert RGB to HSL (FROM 0 - 255)
 const rgbToHsl = (r, g, b) => {
@@ -115,15 +137,49 @@ const getUpdatedImageData = () => {
     return imageData
 }
 
-const drawCircleOnCanvas = (x, y, radius = 20) => {
-    ctx.fillStyle = "red";
-    
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, 2 * Math.PI);
-    ctx.fill();
-    ctx.strokeStyle = "black";
-    ctx.lineWidth = 2;
-    ctx.stroke();
+const updateMatte = () => {
+    var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    var data = imageData.data;
+
+    targetHSL = rgbToHsl(...sampledColors[0])
+
+    totalCounter = 0
+    changedCounter = 0
+
+    //Read image and make changes on the fly as it's read  
+    for (i = 0; i < data.length; i += 4) 
+    {
+        totalCounter++;
+        let r = imageData.data[i];
+        let g = imageData.data[i+1];
+        let b = imageData.data[i+2];
+        let colorHSL = rgbToHsl(r, g, b)
+
+        let hueDiff = Math.abs(targetHSL[0] - colorHSL[0]);
+        let satDiff = Math.abs(targetHSL[1] - colorHSL[1]);
+        let briDiff = Math.abs(targetHSL[2] - colorHSL[2]);
+
+        if (hueDiff < 0.1 && satDiff < 0.1 && briDiff < 0.1) {
+            changedCounter++
+            let newHSL = shiftHue(...colorHSL)
+            let newRGB = hslToRgb(...newHSL)
+
+            // if (changedCounter < 5) {
+            //     console.log(newHSL)
+            //     console.log(colorHSL)
+            //     console.log(newRGB)
+            //     console.log("--------------")
+            // }
+            
+            imageData.data[i] = newRGB[0]
+            imageData.data[i+1] = newRGB[1]
+            imageData.data[i+2] = newRGB[2]
+        }
+    } 
+
+    console.log(`${changedCounter} OUT OF ${totalCounter}`)
+
+    return imageData
 }
 
 const downloadCanvasAsJPEG = () => {
@@ -142,11 +198,16 @@ const downloadCanvasAsJPEG = () => {
 const getMouseClickPosition = (e) => {
     // DUE TO THE CANVAS BEING SCALED BY CSS
     // GETTING THE REAL SIZE IS REQUIRED BEFORE DETERMINING THE MOUSE CLICK
-    let realWidth = canvas.getBoundingClientRect().width;
-    let realHeight = canvas.getBoundingClientRect().height;
+    var rect = canvas.getBoundingClientRect();
 
-    let clickXWithoutScale = e.x - canvas.offsetLeft;
-    let clickYWithoutScale = e.y - canvas.offsetTop;
+    let realWidth = rect.width;
+    let realHeight = rect.height;
+
+    // console.log(realWidth, realHeight)
+    // console.log(rect.left, rect.top)
+
+    let clickXWithoutScale = e.x - rect.left;
+    let clickYWithoutScale = e.y - rect.top;
 
     let mouseX = Math.floor(clickXWithoutScale * (canvas.width / realWidth));
     let mouseY = Math.floor(clickYWithoutScale * (canvas.height / realHeight));
@@ -155,24 +216,75 @@ const getMouseClickPosition = (e) => {
 
 }
 
+const addIndicator = (x, y, color) => {
+    let leftPercentage = x / canvas.width;
+    let topPercentage = y / canvas.height;
+
+    let newIndicatorElement = document.createElement("div");
+    newIndicatorElement.classList.add("indicator")
+    newIndicatorElement.setAttribute("style", `top: ${(topPercentage*100).toFixed(2)}%; left: ${(leftPercentage*100).toFixed(2)}%; background-color: rgb(${color[0]}, ${color[1]}, ${color[2]});`)
+
+    indicatorHolderElement.appendChild(newIndicatorElement);
+}
+
+const toggleIndicatorDisplay = () => {
+    showVisualizer = !showVisualizer;
+
+    if (!showVisualizer) {
+        indicatorHolderElement.classList.add("hidden")
+    } else {
+        indicatorHolderElement.classList.remove("hidden")
+    }
+}
+
+const changeImageHolderDirection = () => {
+    var windowAspectRatio = window.innerWidth / window.innerHeight;
+
+    if (imageAspectRatio > windowAspectRatio) {
+        if (currentHolderDirection !== "horizontal") {
+            canvasHolder.setAttribute("data-image-direction", "horizontal");
+            currentHolderDirection = "horizontal";
+        }
+    } else {
+        if (currentHolderDirection !== "vertical") {
+            canvasHolder.setAttribute("data-image-direction", "vertical");
+            currentHolderDirection = "vertical";
+        }
+    }
+}
+
 // Once the image has loaded, draw it onto the canvas
 img.onload = function() {
     // Get the size of the image
-    var width = img.naturalWidth;
-    var height = img.naturalHeight;
+    imageWidth = img.naturalWidth;
+    imageHeight = img.naturalHeight;
+    imageAspectRatio = imageWidth / imageHeight;
 
+    changeImageHolderDirection()
+    
     // Set the size of the canvas to match the image size
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = imageWidth;
+    canvas.height = imageHeight;
+
+    indicatorHolderElement.style.width = imageWidth;
+    indicatorHolderElement.style.height = imageHeight;
+
+    console.log(indicatorHolderElement.style.width)
 
     // // Draw the scaled-down image onto the canvas
-    ctx.drawImage(img, 0, 0, width, height);
+    ctx.drawImage(img, 0, 0, imageWidth, imageHeight);
 };
+
+window.addEventListener("resize", () => {
+    changeImageHolderDirection()
+});
+
 
 // Add an event listener for mouse clicks on the canvas
 canvas.addEventListener("click", function(event) {
     // GET REAL CLICK PIXEL
     let {mouseX, mouseY} = getMouseClickPosition(event);
+
 
     // Get the pixel color data at the clicked point
     var pixelData = ctx.getImageData(mouseX, mouseY, 1, 1).data;
@@ -185,9 +297,9 @@ canvas.addEventListener("click", function(event) {
     sampledColors[0] = [red, green, blue]
     ctx.putImageData(getUpdatedImageData(), 0, 0);
 
-    // drawCircleOnCanvas(mouseX, mouseY)
+    addIndicator(mouseX, mouseY, [red, green, blue]);
 
-    document.querySelector(".clicked-color").setAttribute("style", `background-color: rgb(${red}, ${green}, ${blue});`)
+    // document.querySelector(".clicked-color").setAttribute("style", `background-color: rgb(${red}, ${green}, ${blue});`)
 
     // Display the color in the console
     console.log("Clicked color: rgb(" + red + ", " + green + ", " + blue + ")");
