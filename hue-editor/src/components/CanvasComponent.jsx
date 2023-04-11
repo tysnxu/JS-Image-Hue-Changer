@@ -1,13 +1,17 @@
 import { useEffect, useRef } from 'react'
+import React from 'react';
 import {rgbToHsl, hslToRgb, shiftHue} from "./colorConversion"
 
-export const Canvas = props => {
+export const Canvas = React.memo( props => {
     const canvasRef = useRef(null);
+    const contextRef = useRef(null);
     const canvasImageRef = useRef(new Image());
     
     var canvas = null;
     var context = null;
     var canvasImage = null;
+
+    useEffect(() => {props.contextRef.current = context}, [context])
 
     const handleMouseClick = (e) => {
         let {mouseX, mouseY} = getMouseClickPosition(e);
@@ -27,8 +31,6 @@ export const Canvas = props => {
         if (props.canvasAttributes.ratio !== 0) {
             addIndicator(mouseX, mouseY, [red, green, blue]);
         }
-    
-        // document.querySelector(".clicked-color").setAttribute("style", `background-color: rgb(${red}, ${green}, ${blue});`)
     
         // Display the color in the console
         console.log(`Clicked color: rgb(${red}, ${green}, ${blue}) @ [${mouseX}, ${mouseY}]`);
@@ -71,22 +73,11 @@ export const Canvas = props => {
         canvas.width = imageWidth;
         canvas.height = imageHeight;
 
-        if (context) {
-            console.log("drawing")
-            // console.log(imageWidth, imageHeight)
-            // Draw the scaled-down image onto the canvas
-            context.drawImage(canvasImage, 0, 0, imageWidth, imageHeight);
-        }
+        // Draw the scaled-down image onto the canvas
+        context.drawImage(canvasImage, 0, 0, imageWidth, imageHeight);
     }
 
     const addIndicator = (x, y, colorRGB) => {
-        // let leftPercentage = x / canvas.width;
-        // let topPercentage = y / canvas.height;
-    
-        // let newIndicatorElement = document.createElement("div");
-        // newIndicatorElement.classList.add("indicator")
-        // newIndicatorElement.setAttribute("style", `top: ${(topPercentage*100).toFixed(2)}%; left: ${(leftPercentage*100).toFixed(2)}%; background-color: rgb(${colorRGB[0]}, ${colorRGB[1]}, ${colorRGB[2]});`)
-    
         let colorHSL = rgbToHsl(...colorRGB);
     
         props.setcolorSource([...props.colorSource,
@@ -94,10 +85,10 @@ export const Canvas = props => {
                 position: [x, y],
                 color: [colorHSL[0], colorHSL[1], colorHSL[2]],
                 threshold: {
-                    hue: 0.1,  // DEFAULT VALUES
-                    sat: 0.1,
-                    bri: 0.1,
-                    radius: 20,
+                    hue: 0.5,  // DEFAULT VALUES
+                    sat: 0.5,
+                    bri: 0.5,
+                    radius: 200,
                 }
             }
         ])
@@ -106,8 +97,9 @@ export const Canvas = props => {
     // FIRST LOAD --> AFTER LOAD
     useEffect(() => {
         canvas = canvasRef.current;
+        contextRef.current = canvas.getContext('2d', {willReadFrequently : true});
 
-        context = canvas.getContext('2d', {willReadFrequently : true});
+        context = contextRef.current;
 
         canvasImage = canvasImageRef.current;
         canvasImage.onload = imageOnLoad;
@@ -116,7 +108,8 @@ export const Canvas = props => {
             canvasImageRef.current.src = props.src;
             props.changeImageHolderDirection();
         }
-    }, [props.colorSource])
+    // }, [props.colorSource])
+    }, [])
 
     useEffect(() => {
         if (props.src != "") {
@@ -126,4 +119,4 @@ export const Canvas = props => {
     }, [props.src])
 
     return <canvas className='main-canvas' onMouseDown={handleMouseClick} ref={canvasRef}/>
-}
+})

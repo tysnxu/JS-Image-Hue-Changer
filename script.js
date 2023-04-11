@@ -36,7 +36,7 @@ var sampledColors = [[212, 188, 138]];
 //     }
 // }
 
-var maskIMG = new Array();
+// var maskIMG = new Array();
 
 // // Function to convert RGB to HSL (FROM 0 - 255)
 // const rgbToHsl = (r, g, b) => {
