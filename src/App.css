@@ -46,6 +46,29 @@ main-canvas: 0
   z-index: 2;
 }
 
+.mask-mode-hint{
+  position: absolute;
+
+  padding: 0.4rem 0.5rem;
+
+  bottom: 1rem;
+  left: 1rem;
+
+  opacity: 1;
+
+  border-radius: 0.2rem;
+
+  z-index: 6; 
+  background: white;
+}
+
+.fade-away{
+  opacity: 0;
+  transition: opacity 1s ease-in-out;
+  transition-delay: 500ms;
+}
+
+
 .main-canvas, .matte-canvas, .canvas-interaction-holder{
   position: absolute;
   height: 100%;

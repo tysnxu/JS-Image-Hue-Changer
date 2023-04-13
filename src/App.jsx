@@ -36,6 +36,10 @@ function App() {
   const mainContextRef = useRef(null);
   const maskCanvasRef = useRef(null);
 
+  // TODO: ADD HIDE INDICATORS
+
+  const maskModeHintRef = useRef();
+
   // UPDATE MASK ARRAY ON IMAGE UPDATE
   useEffect(() => {
     document.querySelector(".matte-canvas").width = canvasAttributes.width;
@@ -92,13 +96,10 @@ function App() {
     // FILLING THE CANVAS --> THIS MAKES THE PIXEL UPDATING WAY FASTER THAN WITH THE IMAGE NOT INITIALIZED
     let ctx = document.querySelector(".matte-canvas").getContext('2d', {willReadFrequently : true});
 
-    if (matteMode !== 0) {
-      ctx.beginPath();
-      ctx.fillStyle = "rgba(0, 0, 0, 255)";
-      ctx.fillRect(0, 0, canvasAttributes.width, canvasAttributes.height);
-    } else {
-      ctx.clearRect(0, 0, canvasAttributes.width, canvasAttributes.height);
-    }
+    ctx.beginPath();
+    ctx.fillStyle = "rgba(0, 0, 0, 255)";
+    ctx.fillRect(0, 0, canvasAttributes.width, canvasAttributes.height);
+    // ctx.clearRect(0, 0, canvasAttributes.width, canvasAttributes.height);
     
     colorSource.forEach(colorPoint => {
       totalPixels++;
@@ -296,11 +297,25 @@ function App() {
     else if (matteMode === 2) return {opacity: opacity, mixBlendMode: 'multiply'}
   }
 
+  const getMatteMode = () => {
+    if (matteMode === 0) return "hidden"
+    else if (matteMode === 1) return "lighten"
+    else if (matteMode === 2) return "multiply"
+  }
+
+  useEffect(() => {
+    if (maskModeHintRef.current && canvasAttributes.width !== 0) {
+      maskModeHintRef.current.classList.remove("fade-away");
+      maskModeHintRef.current.offsetWidth;
+      maskModeHintRef.current.classList.add("fade-away");
+    }
+  }, [matteMode])
+
   return (
     <div className="App">
       <div className="canvas-holder" data-image-direction={canvasHorizontal ? "horizontal" : "vertical"}>
           <div className="canvas-holder-inner" style={canvasAttributes ? {aspectRatio: `${canvasAttributes.width} / ${canvasAttributes.height}`} : {}}>
-              <div className='moving-indicator' ></div>
+              <div className={canvasAttributes.width === 0 ? 'mask-mode-hint hidden' : "mask-mode-hint fade-away"} ref={maskModeHintRef}>{getMatteMode()}</div>
               <div className="indicator-holder">
                 {colorSource.map((color, index) => {
                   let indicatorStyle = {
