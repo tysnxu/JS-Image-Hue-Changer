@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react'
 import React from 'react';
-import {rgbToHsl, hslToRgb, shiftHue} from "./colorConversion"
 
 export const Canvas = React.memo( props => {
     const canvasRef = useRef(null);
@@ -12,6 +11,7 @@ export const Canvas = React.memo( props => {
     var canvas = null;
     var context = null;
     var canvasImage = null;
+
 
     useEffect(() => {props.contextRef.current = context}, [context])
 
@@ -48,6 +48,7 @@ export const Canvas = React.memo( props => {
         canvas = canvasRef.current;
         contextRef.current = canvas.getContext('2d', {willReadFrequently : true});
 
+        props.mainCanvasRef.current = canvasRef.current;
         context = contextRef.current;
 
         canvasImage = canvasImageRef.current;

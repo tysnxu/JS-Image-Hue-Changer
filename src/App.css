@@ -97,15 +97,15 @@ main-canvas: 0
 
   z-index: 5;
 
-  transition: 0.2s;
+  transition: transform 0.2s;
 
   box-shadow: 2px 2px 5px black;
 }
 
-.indicator:hover, .indicator:active{
+.indicator[data-selected="1"], .indicator:hover, .indicator:active{
+  outline: rgb(206, 255, 133) 0.2rem solid;
   transform: translateX(-50%) translateY(-50%) scale(1.5);
 }
-
 
 /* 
 ==========================
@@ -140,6 +140,12 @@ main-canvas: 0
   top: 8rem;
 }
 
+.delete-btn{
+  top: 8rem;
+
+  background-color: red;
+  color: white
+}
 
 .open-file-btn{
   position: fixed;
@@ -148,6 +154,19 @@ main-canvas: 0
   right: 2rem;
 }
 
+.download-btn{
+  top: 5rem;
+}
+
+.toggle-hue-btn {
+  top: 15rem;
+}
+.toggle-sat-btn {
+  top: 16rem;
+}
+.toggle-bri-btn {
+  top: 18rem;
+}
 
 .range-toggle-slider{
   top: 10rem;

@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import './App.css'
 
 import {rgbToHsl, hslToRgb, shiftHue} from "./components/colorConversion"
-import {xyToArrayIndex, indexToXY, inRange} from "./components/coordinateCalc"
+import {xyToArrayIndex, indexToXY, powerOfDistance, inRange, lerp} from "./components/coordinateCalc"
 import {downloadCanvasAsJPEG} from "./components/fileIO"
 
 import {Canvas} from "./components/CanvasComponent"
+
+import useLongPress from "./components/useLongPress";
 
 
 function App() {
@@ -25,11 +27,12 @@ function App() {
   const [canvasHorizontal, setCanvasHorizontal] = useState(false);
   const [imageSource, setImageSource] = useState("");
 
-  const [showMatte, setShowMatte] = useState(true);  // IF HIDE MATTE, REVEAL THE UPDATED PIXEL COLOUR
+  const [matteMode, setMatteMode] = useState(2); // 0: HIDDEN | 1: LIGHTEN | 2 : MULTIPLY
   const [editMode, setEditMode] = useState(0)  // -1: NO INTERACTION | 0: ADD | 1: CHANGE HUE | 2: CHANGE SATURATION | 3: CHANGE BRIGHTNESS
 
   const [selectedPoint, setSelectedPoint] = useState(null);
 
+  const mainCanvasRef = useRef(null);
   const mainContextRef = useRef(null);
   const maskCanvasRef = useRef(null);
 
@@ -44,14 +47,14 @@ function App() {
     ctx.fillStyle = "rgba(0, 0, 0, 0)";
     ctx.fillRect(0, 0, canvasAttributes.width, canvasAttributes.height);
 
+    changeImageHolderDirection()
     window.addEventListener('resize', changeImageHolderDirection);
   }, [canvasAttributes])
 
   useEffect(() => {if (canvasAttributes.width !== 0) {
     updateMaskImage()
-    setSelectedPoint(colorSource.length - 1)
-  }}, [colorSource, showMatte])
-
+    if (colorSource.length !== 0) {setSelectedPoint(colorSource.length - 1)} else {setEditMode(0); setSelectedPoint(null);}
+  }}, [colorSource])
 
   const changeImageHolderDirection = () => {
     var windowRatio = window.innerWidth / window.innerHeight;
@@ -69,7 +72,7 @@ function App() {
     d[0] = rgbValues[0];  // RED
     d[1] = rgbValues[1];  // GREEN
     d[2] = rgbValues[2];  // BLUE
-    d[3] = 255;  // ALPHA
+    d[3] = rgbValues[3];  // ALPHA
 
     ctx.putImageData( id, pixelX, pixelY );   
   }
@@ -83,14 +86,23 @@ function App() {
 
     var newMask = new Array(canvasAttributes.width * canvasAttributes.height);
 
-    let totalPixelCount = 0;
-    let updatedPixelCount = 0;
+    let totalPixels = 0;
+    let affectedPixels = 0;
 
     // FILLING THE CANVAS --> THIS MAKES THE PIXEL UPDATING WAY FASTER THAN WITH THE IMAGE NOT INITIALIZED
     let ctx = document.querySelector(".matte-canvas").getContext('2d', {willReadFrequently : true});
-    ctx.clearRect(0, 0, canvasAttributes.width, canvasAttributes.height);
 
+    if (matteMode !== 0) {
+      ctx.beginPath();
+      ctx.fillStyle = "rgba(0, 0, 0, 255)";
+      ctx.fillRect(0, 0, canvasAttributes.width, canvasAttributes.height);
+    } else {
+      ctx.clearRect(0, 0, canvasAttributes.width, canvasAttributes.height);
+    }
+    
     colorSource.forEach(colorPoint => {
+      totalPixels++;
+
       let targetHSL = colorPoint.color;
 
       // GET COLOUR ORIGIN
@@ -106,11 +118,15 @@ function App() {
       let startPixelY = Math.max(colourCenterY - radius - 1, 0);
       let endPixelY = Math.min(colourCenterY + radius + 1, canvasAttributes.height);
 
+      let radiusPwr = radius * radius;
+
       for (let pixelX = startPixelX; pixelX < endPixelX ; pixelX++) {
         for (let pixelY = startPixelY; pixelY < endPixelY ; pixelY++) {
+          let distPwr = powerOfDistance(pixelX, pixelY, colourCenterX, colourCenterY);
+          
           // 1. SEE IF PIXEL IS IN RANGE
-          if (inRange(pixelX, pixelY, colourCenterX, colourCenterY, radius)) {
-            totalPixelCount++
+          if (distPwr < radiusPwr) {
+            affectedPixels++;
 
             // 2. SEE IF COLOR FITS REQUIREMENT
             let index = xyToArrayIndex(pixelX, pixelY, canvasAttributes.width) * 4;
@@ -123,34 +139,47 @@ function App() {
             let satDiff = Math.abs(targetHSL[1] - pixelColorHSL[1]);
             let briDiff = Math.abs(targetHSL[2] - pixelColorHSL[2]);
 
-
             if (hueDiff < colorPoint.threshold.hue && satDiff < colorPoint.threshold.sat && briDiff < colorPoint.threshold.bri) {
               let pixelIndex = xyToArrayIndex(pixelX, pixelY, canvasAttributes.width)
-              newMask[pixelIndex] = 255;
+              let alpha = lerp(255, 0, (distPwr / radiusPwr));
 
-              if (showMatte === true) {
-                changePixelToColour(ctx, [255, 255, 255], pixelX, pixelY)
+              let originalValue = newMask[pixelIndex] | 0;
+
+              if (alpha > originalValue) {
+                  newMask[pixelIndex] = alpha;
+                  changePixelToColour(ctx, [alpha, alpha, alpha, 255], pixelX, pixelY)
+                }
               }
-
-              updatedPixelCount++
             }
           }
-        } 
+        }
       }
+    )
 
-      // console.log(updatedPixelCount)
-    })
-
-    // imgdt.data = dataCopy;
     // console.log("UPDATE COLOR")
   }
 
-  const toggleEditMode = () => {
-    editMode === 0 ? setEditMode(-1) : setEditMode(0);
-    setSelectedPoint(null);
+  const toggleMaskDisplayMode = () => {
+    if (matteMode === 2) setMatteMode(0)
+    else setMatteMode(matteMode+1)
   }
 
-  const deselectColourSample = (e) => {
+  const handleAddButton = () => {
+    // SET MODE --> ADD POINT
+    editMode === 0 ? setEditMode(-1) : setEditMode(0);
+
+    if (selectedPoint !== null) {
+      if (colorSource.length === 0) {
+        let ctx = document.querySelector(".matte-canvas").getContext('2d', {willReadFrequently : true});
+        ctx.clearRect(0, 0, canvasAttributes.width, canvasAttributes.height);
+      }
+
+      // REMOVE POINT
+      removeIndicator(selectedPoint);
+    }
+  }
+
+  const deselectColourSample = () => {
     setSelectedPoint(null);
     setEditMode(-1);
   }
@@ -214,33 +243,90 @@ function App() {
       ])
   }
 
+  const removeIndicator = (selectedIndex) => {
+    if (typeof selectedIndex !== "number") selectedIndex = parseInt(selectedIndex)
+    setcolorSource(colorSource.filter((_, index) => (index !== selectedIndex)))
+  }
+
+  // LONG PRESS
+  const onLongPress = (e) => {removeIndicator(e.target.getAttribute("data-index"))};
+  const onClick = (e) => {setSelectedPoint(parseInt(e.target.getAttribute("data-index"))); setEditMode(1);}
+
+  const defaultOptions = {shouldPreventDefault: true, delay: 500,};
+  const longPressEvent = useLongPress(onLongPress, onClick, defaultOptions);
+
+  // ELEMENTS 
+  const SliderElement = () => {
+    if (selectedPoint === null) return "";
+    else if (selectedPoint > colorSource.length - 1) return ""
+
+    const onChangeEvent = (e) => {
+      colorSource[selectedPoint].threshold.radius = e.target.value; 
+      updateMaskImage()
+    }
+
+    const defaultValue = () => {
+      return colorSource[selectedPoint].threshold.radius
+    };
+
+    return <input type="range" ind={selectedPoint} key={selectedPoint} className='left-row-btn range-toggle-slider ui-btn' min="50" max="500" onChange={onChangeEvent} defaultValue={defaultValue()}/>;
+  }
+
+  // STYLING
+  const getAddButtonClass = () => {
+    let classList = "ui-btn left-row-btn "
+
+    if (selectedPoint !== null) {
+      classList += "delete-btn "
+    } else {
+      classList += "add-color-sample-btn "
+
+      if (editMode === 0) {
+        classList += "btn-active "
+      }
+    }
+
+    return classList;
+  }
+
+  const getMaskStyle = () => {
+    const opacity = 0.8;
+    if (matteMode === 0) return {display: "none"}
+    else if (matteMode === 1) return {opacity: opacity, mixBlendMode: 'lighten'}
+    else if (matteMode === 2) return {opacity: opacity, mixBlendMode: 'multiply'}
+  }
+
   return (
     <div className="App">
       <div className="canvas-holder" data-image-direction={canvasHorizontal ? "horizontal" : "vertical"}>
           <div className="canvas-holder-inner" style={canvasAttributes ? {aspectRatio: `${canvasAttributes.width} / ${canvasAttributes.height}`} : {}}>
+              <div className='moving-indicator' ></div>
               <div className="indicator-holder">
                 {colorSource.map((color, index) => {
                   let indicatorStyle = {
                     top: `${color.position[1] / canvasAttributes.height * 100}%`, 
                     left: `${color.position[0] / canvasAttributes.width * 100}%`,
-                    backgroundColor: `hsl(${color.color[0] * 360}, ${color.color[1] * 100}%, ${color.color[2] * 100}%)`
+                    backgroundColor: `hsl(${color.color[0] * 360}, ${color.color[1] * 100}%, ${color.color[2] * 100}%)`,
                   };
-                  return <div className='indicator' onClick={() => {setSelectedPoint(index); setEditMode(1)}} key={index} style={indicatorStyle}></div>
+                  return <div className='indicator' {...longPressEvent} data-index={index} data-selected={selectedPoint === index ? "1" : "0"} key={index} style={indicatorStyle}></div>
                 })}
               </div>
               <div className='canvas-interaction-holder' onClick={handleCanvasClicks}></div>
-              <canvas className='matte-canvas' ref={maskCanvasRef}></canvas>
-              <Canvas src={imageSource} changeImageHolderDirection={changeImageHolderDirection} canvasAttributes={canvasAttributes} setCanvasAttributes={setCanvasAttributes} contextRef={mainContextRef}/>
+              <canvas className='matte-canvas' style={getMaskStyle()} ref={maskCanvasRef}></canvas>
+              <Canvas src={imageSource} changeImageHolderDirection={changeImageHolderDirection} canvasAttributes={canvasAttributes} setCanvasAttributes={setCanvasAttributes} mainCanvasRef={mainCanvasRef} contextRef={mainContextRef}/>
           </div>
           <div className='blank-background' onClick={deselectColourSample}></div>
       </div>
       {imageSource !== "" ? <>
-        <button className="left-row-btn show-hide-canvas-btn ui-btn" onClick={() => {setShowMatte(!showMatte)}}>{showMatte ? "HIDE MATTE" : "SHOW MATTE"}</button>
-        <button className={editMode === 0 ? "left-row-btn add-color-sample-btn btn-active ui-btn" : "left-row-btn add-color-sample-btn ui-btn"} onClick={toggleEditMode}>ADD COLOR SAMPLE</button>
+        <button className="left-row-btn show-hide-canvas-btn ui-btn" onClick={toggleMaskDisplayMode}>toggle mask</button>
+        <button className={getAddButtonClass()} onClick={handleAddButton}>{selectedPoint !== null ? "REMOVE COLOR SAMPLE" : "ADD COLOR SAMPLE"}</button>
+        <button className='left-row-btn ui-btn toggle-hue-btn' onClick={() => {setEditMode(1)}}>HUE</button>
+        <button className='left-row-btn ui-btn toggle-sat-btn' onClick={() => {setEditMode(2)}}>SAT</button>
+        <button className='left-row-btn ui-btn toggle-bri-btn' onClick={() => {setEditMode(3)}}>BRI</button>
       </> : ""}
-      {selectedPoint !== null ? <input type="range" key={selectedPoint} className='left-row-btn range-toggle-slider ui-btn' min="50" max="500" onChange={(e) => {colorSource[selectedPoint].threshold.radius = e.target.value; updateMaskImage()}} defaultValue={colorSource[selectedPoint].threshold.radius}/> : ""}
+      <SliderElement/>
       <button onClick={() => {setImageSource("./img.jpg")}} className='open-file-btn right-row-btn ui-btn'>OPEN FILE</button>
-      <button onClick={downloadCanvasAsJPEG} className='right-row-btn ui-btn'>download as jpg</button>
+      <button onClick={() => {downloadCanvasAsJPEG(mainCanvasRef.current)}} className='right-row-btn ui-btn download-btn'>download as jpg</button>
     </div>
   )
 }
