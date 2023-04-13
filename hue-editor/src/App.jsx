@@ -38,10 +38,16 @@ function App() {
     document.querySelector(".matte-canvas").width = canvasAttributes.width;
     document.querySelector(".matte-canvas").height = canvasAttributes.height;
 
-    window.addEventListener('resize', changeImageHolderDirection)
+    // FILLING THE CANVAS --> THIS MAKES THE PIXEL UPDATING WAY FASTER THAN WITH THE IMAGE NOT INITIALIZED
+    let ctx = document.querySelector(".matte-canvas").getContext('2d', {willReadFrequently : true});
+    ctx.beginPath();
+    ctx.fillRect(0, 0, canvasAttributes.width, canvasAttributes.height);
+
+    window.addEventListener('resize', changeImageHolderDirection);
   }, [canvasAttributes])
 
   useEffect(() => {if (canvasAttributes.width !== 0 && showMatte === true) updateMaskImage()}, [colorSource, showMatte])
+
 
   const changeImageHolderDirection = () => {
     var windowRatio = window.innerWidth / window.innerHeight;
@@ -62,6 +68,12 @@ function App() {
 
     let totalPixelCount = 0;
     let updatedPixelCount = 0;
+            
+    let ctx = document.querySelector(".matte-canvas").getContext('2d', {willReadFrequently : true});
+    let imgdt = ctx.getImageData(0, 0, canvasAttributes.width, canvasAttributes.height);
+    let dt = imgdt.data;
+    
+    // let dataCopy = [...dt]
 
     colorSource.forEach(colorPoint => {
       let targetHSL = colorPoint.color;
@@ -95,14 +107,16 @@ function App() {
             let hueDiff = Math.abs(targetHSL[0] - pixelColorHSL[0]);
             let satDiff = Math.abs(targetHSL[1] - pixelColorHSL[1]);
             let briDiff = Math.abs(targetHSL[2] - pixelColorHSL[2]);
-            
-            let ctx = document.querySelector(".matte-canvas").getContext('2d', {willReadFrequently : true});
-            // let imgdt = ctx.getImageData(0, 0, canvasAttributes.width, canvasAttributes.height);
-            // let dt = imgdt.data;
+
 
             if (hueDiff < colorPoint.threshold.hue && satDiff < colorPoint.threshold.sat && briDiff < colorPoint.threshold.bri) {
               let pixelIndex = xyToArrayIndex(pixelX, pixelY, canvasAttributes.width)
               newMask[pixelIndex] = 255;
+
+              // dt[pixelIndex*4] = 255;
+              // dt[pixelIndex*4+1] = 255;
+              // dt[pixelIndex*4+2] = 255;
+              // dt[pixelIndex*4+3] = 255;
 
               if (showMatte === true) {
                 var id = ctx.createImageData(1,1); // only do this once per page
@@ -124,6 +138,7 @@ function App() {
       console.log(updatedPixelCount)
     })
 
+    // imgdt.data = dataCopy;
     console.log("UPDATE COLOR")
   }
 

@@ -6,6 +6,8 @@ export const Canvas = React.memo( props => {
     const canvasRef = useRef(null);
     const contextRef = useRef(null);
     const canvasImageRef = useRef(new Image());
+
+    const imageDownScaleFactor = 2;  // SCALE DOWN THE IMAGE/CANVAS TO PRESERVE MEMORY
     
     var canvas = null;
     var context = null;
@@ -60,10 +62,12 @@ export const Canvas = React.memo( props => {
         let imageWidth = canvasImage.naturalWidth;
         let imageHeight = canvasImage.naturalHeight;
 
-        imageWidth /= 2
-        imageHeight /= 2
+        imageWidth = Math.floor(imageWidth / imageDownScaleFactor)
+        imageHeight = Math.floor(imageHeight / imageDownScaleFactor)
 
         let imageAspectRatio = imageWidth / imageHeight;
+
+        console.log(`OPENING IMAGE: ${imageWidth} / ${imageHeight}`)
 
         props.setCanvasAttributes({
             width: imageWidth,
@@ -92,7 +96,7 @@ export const Canvas = React.memo( props => {
                     hue: 0.9,  // DEFAULT VALUES
                     sat: 0.9,
                     bri: 0.9,
-                    radius: 100,
+                    radius: 50,
                 }
             }
         ])
