@@ -59,6 +59,10 @@ export const Canvas = React.memo( props => {
         // Get the size of the image
         let imageWidth = canvasImage.naturalWidth;
         let imageHeight = canvasImage.naturalHeight;
+
+        imageWidth /= 2
+        imageHeight /= 2
+
         let imageAspectRatio = imageWidth / imageHeight;
 
         props.setCanvasAttributes({
@@ -85,10 +89,10 @@ export const Canvas = React.memo( props => {
                 position: [x, y],
                 color: [colorHSL[0], colorHSL[1], colorHSL[2]],
                 threshold: {
-                    hue: 0.5,  // DEFAULT VALUES
-                    sat: 0.5,
-                    bri: 0.5,
-                    radius: 200,
+                    hue: 0.9,  // DEFAULT VALUES
+                    sat: 0.9,
+                    bri: 0.9,
+                    radius: 100,
                 }
             }
         ])

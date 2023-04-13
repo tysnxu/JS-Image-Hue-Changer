@@ -42,7 +42,7 @@ body{
 } */
 
 .matte-canvas{
-  z-index: 10;
+  z-index: 1;
 
   pointer-events: none;
 }
@@ -95,18 +95,12 @@ body{
 }
 
 
-.plus-btn, .minus-btn{
+.show-hide-canvas-btn{
   position: fixed;
   left: 1rem;
+  top: 5rem;
 }
 
-.minus-btn{
-  top: 4rem;
-}
-
-.plus-btn{
-  top: 2rem;
-}
 
 .clicked-color{
   background-color: white;

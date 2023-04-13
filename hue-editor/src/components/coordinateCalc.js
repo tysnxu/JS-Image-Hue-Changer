@@ -13,5 +13,5 @@ export const inRange = (p1X, p1Y, p2X, p2Y, distanceThreshold) => {
     let xDiff = p1X - p2X;
     let yDiff = p1Y - p2Y;
 
-    return xDiff * xDiff + yDiff * yDiff < distanceThreshold;
+    return xDiff * xDiff + yDiff * yDiff < distanceThreshold * distanceThreshold;
 }

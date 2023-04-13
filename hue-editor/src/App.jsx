@@ -25,6 +25,10 @@ function App() {
   const [canvasHorizontal, setCanvasHorizontal] = useState(false);
   const [imageSource, setImageSource] = useState("");
 
+  const [showMatte, setShowMatte] = useState(false);
+
+  const [selectedPoint, setSelectedPoint] = useState(null);
+
   const mainContextRef = useRef(null);
   
   const maskCanvasRef = useRef(null);
@@ -37,7 +41,7 @@ function App() {
     window.addEventListener('resize', changeImageHolderDirection)
   }, [canvasAttributes])
 
-  useEffect(() => {if (canvasAttributes.width !== 0) updateMaskImage()}, [colorSource])
+  useEffect(() => {if (canvasAttributes.width !== 0 && showMatte === true) updateMaskImage()}, [colorSource, showMatte])
 
   const changeImageHolderDirection = () => {
     var windowRatio = window.innerWidth / window.innerHeight;
@@ -58,12 +62,6 @@ function App() {
 
     let totalPixelCount = 0;
     let updatedPixelCount = 0;
-
-    
-    let ctx = document.querySelector(".matte-canvas").getContext('2d', {willReadFrequently : true});
-    let imgdt = ctx.getImageData(0, 0, canvasAttributes.width, canvasAttributes.height);
-    let dt = imgdt.data;
-
 
     colorSource.forEach(colorPoint => {
       let targetHSL = colorPoint.color;
@@ -97,42 +95,34 @@ function App() {
             let hueDiff = Math.abs(targetHSL[0] - pixelColorHSL[0]);
             let satDiff = Math.abs(targetHSL[1] - pixelColorHSL[1]);
             let briDiff = Math.abs(targetHSL[2] - pixelColorHSL[2]);
+            
+            let ctx = document.querySelector(".matte-canvas").getContext('2d', {willReadFrequently : true});
+            // let imgdt = ctx.getImageData(0, 0, canvasAttributes.width, canvasAttributes.height);
+            // let dt = imgdt.data;
 
             if (hueDiff < colorPoint.threshold.hue && satDiff < colorPoint.threshold.sat && briDiff < colorPoint.threshold.bri) {
-              // let pixelIndex = xyToArrayIndex(pixelX, pixelY, canvasAttributes.width)
+              let pixelIndex = xyToArrayIndex(pixelX, pixelY, canvasAttributes.width)
+              newMask[pixelIndex] = 255;
 
-              var id = ctx.createImageData(1,1); // only do this once per page
-              var d  = id.data;                        // only do this once per page
-              d[0]   = 255;
-              d[1]   = 255;
-              d[2]   = 255;
-              d[3]   = 255;
-              ctx.putImageData( id, pixelX, pixelY );     
-
-              // newMask[pixelIndex] = 255;
+              if (showMatte === true) {
+                var id = ctx.createImageData(1,1); // only do this once per page
+                var d = id.data;                        // only do this once per page
+                d[0] = 255;
+                d[1] = 255;
+                d[2] = 255;
+                d[3] = 255;
+                ctx.putImageData( id, pixelX, pixelY );     
+              }
 
               updatedPixelCount++
             }
+
           }
         } 
       }
+
+      console.log(updatedPixelCount)
     })
-
-    let totalPX = 0
-    let nonZeroPX = 0
-
-    // for (let i = 0; i < newMask.length; i++) {
-    //   // dt[i*4] = 0;
-    //   // dt[i*4+1] = 0;
-    //   // dt[i*4+2] = 0;
-    // }
-
-    // for (let i = 0; i < dt.length; i+=4) {
-    //   dt[i] = 155;
-    //   dt[i+1] = 233;
-    //   dt[i+2] = 55;
-    //   dt[i+3] = 255;
-    // }
 
     console.log("UPDATE COLOR")
   }
@@ -151,13 +141,11 @@ function App() {
                   return <div className='indicator' key={index} style={indicatorStyle}></div>
                 })}
               </div>
-
-              <canvas className='matte-canvas' ref={maskCanvasRef}></canvas>
+              <canvas className={showMatte ? 'matte-canvas' : 'matte-canvas hidden'} ref={maskCanvasRef}></canvas>
               <Canvas src={imageSource} changeImageHolderDirection={changeImageHolderDirection} canvasAttributes={canvasAttributes} setCanvasAttributes={setCanvasAttributes} setcolorSource={setcolorSource} colorSource={colorSource} contextRef={mainContextRef}/>
           </div>
       </div>
-      <button className="plus-btn">+</button>
-      <button className="minus-btn">-</button>
+      <button className="show-hide-canvas-btn" onClick={() => {setShowMatte(!showMatte)}}>{showMatte ? "HIDE MATTE" : "SHOW MATTE"}</button>
       <button onClick={() => {setImageSource("./img.jpg")}} className='open-file-btn'>OPEN FILE</button>
       <button onClick={downloadCanvasAsJPEG}>download as jpg</button>
       <button>SHOW MATTE</button>
