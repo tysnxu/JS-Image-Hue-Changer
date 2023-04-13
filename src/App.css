@@ -22,36 +22,48 @@ body{
   flex-direction: row;
 }
 
+/* 
+
+Z-INDEX LAYERS:
+
+all-ui-buttons: 10
+indicators: 5
+interaction-holder: 3
+blank-bg: 2
+matte-canvas: 1
+main-canvas: 0
+
+*/
+
 .canvas-holder-inner{
   position: relative;
-
-  /* transform: translateX(50%) scale(1.5); */
 }
 
-.main-canvas, .matte-canvas{
+.blank-background{
+  position: absolute;
+  inset: 0;
+
+  z-index: 2;
+}
+
+.main-canvas, .matte-canvas, .canvas-interaction-holder{
   position: absolute;
   height: 100%;
   width: 100%;
   
   top: 0;
   left: 0;
-}
 
-/* .main-canvas{
-  display: none;
-} */
+  z-index: 0;
+}
 
 .matte-canvas{
   z-index: 1;
-
   pointer-events: none;
 }
 
-.open-file-btn{
-  position: fixed;
-
-  top: 1rem;
-  right: 2rem;
+.canvas-interaction-holder{
+  z-index: 3;
 }
 
 .hidden{
@@ -83,7 +95,7 @@ body{
   border-radius: 1rem;
   outline: white 0.2rem solid;
 
-  z-index: 10;
+  z-index: 5;
 
   transition: 0.2s;
 
@@ -95,12 +107,51 @@ body{
 }
 
 
-.show-hide-canvas-btn{
+/* 
+==========================
+==        BUTTONS       ==
+==========================
+*/
+
+.ui-btn{
   position: fixed;
+  z-index: 10;
+}
+
+
+.btn-active{
+  background-color: black;
+  color: white;
+}
+
+.left-row-btn{
   left: 1rem;
+}
+
+.right-row-btn{
+  right: 1rem;
+}
+
+.show-hide-canvas-btn{
   top: 5rem;
 }
 
+.add-color-sample-btn{
+  top: 8rem;
+}
+
+
+.open-file-btn{
+  position: fixed;
+
+  top: 1rem;
+  right: 2rem;
+}
+
+
+.range-toggle-slider{
+  top: 10rem;
+}
 
 .clicked-color{
   background-color: white;
