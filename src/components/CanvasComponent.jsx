@@ -6,7 +6,7 @@ export const Canvas = React.memo( props => {
     const contextRef = useRef(null);
     const canvasImageRef = useRef(new Image());
 
-    const imageDownScaleFactor = 1;  // SCALE DOWN THE IMAGE/CANVAS TO PRESERVE MEMORY
+    const imageDownScaleFactor = 2;  // SCALE DOWN THE IMAGE/CANVAS TO PRESERVE MEMORY
     
     var canvas = null;
     var context = null;

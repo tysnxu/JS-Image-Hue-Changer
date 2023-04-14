@@ -27,8 +27,8 @@ function App() {
   const [canvasHorizontal, setCanvasHorizontal] = useState(false);
   const [imageSource, setImageSource] = useState("");
 
-  const [matteMode, setMatteMode] = useState(2); // 0: HIDDEN | 1: LIGHTEN | 2 : MULTIPLY
-  const [editMode, setEditMode] = useState(0)  // -1: NO INTERACTION | 0: ADD | 1: CHANGE HUE | 2: CHANGE SATURATION | 3: CHANGE BRIGHTNESS
+  const [matteMode, setMatteMode] = useState(2); // 0: HIDDEN | 1: LIGHTEN | 2 : MULTIPLY | 3 : NORMAL (BW)
+  const [editMode, setEditMode] = useState(0)  // -1: NO INTERACTION | 0: ADD | 1: CHANGE HUE | 2: CHANGE SATURATION | 3: CHANGE BRIGHTNESS | 4. CHANGE RADIUS
 
   const [selectedPoint, setSelectedPoint] = useState(null);
 
@@ -39,6 +39,7 @@ function App() {
   // TODO: ADD HIDE INDICATORS
 
   const maskModeHintRef = useRef();
+  const indicatorHolderRef = useRef();
 
   // UPDATE MASK ARRAY ON IMAGE UPDATE
   useEffect(() => {
@@ -59,6 +60,11 @@ function App() {
     updateMaskImage()
     if (colorSource.length !== 0) {setSelectedPoint(colorSource.length - 1)} else {setEditMode(0); setSelectedPoint(null);}
   }}, [colorSource])
+
+  useEffect(() => {if (canvasAttributes.width !== 0 && selectedPoint !== null && editMode !== 1 && editMode !== 2 && editMode !== 3) {
+    setEditMode(1)
+    
+  }}, [selectedPoint])
 
   const changeImageHolderDirection = () => {
     var windowRatio = window.innerWidth / window.innerHeight;
@@ -137,20 +143,23 @@ function App() {
             let pixelColorHSL = rgbToHsl(...pixelColorRGB);
 
             let hueDiff = Math.abs(targetHSL[0] - pixelColorHSL[0]);
+            if (hueDiff > colorPoint.threshold.hue) { continue; }
+
             let satDiff = Math.abs(targetHSL[1] - pixelColorHSL[1]);
+            if (satDiff > colorPoint.threshold.sat) { continue; }
+
             let briDiff = Math.abs(targetHSL[2] - pixelColorHSL[2]);
+            if (briDiff > colorPoint.threshold.bri) { continue; }
 
-            if (hueDiff < colorPoint.threshold.hue && satDiff < colorPoint.threshold.sat && briDiff < colorPoint.threshold.bri) {
-              let pixelIndex = xyToArrayIndex(pixelX, pixelY, canvasAttributes.width)
-              let alpha = lerp(255, 0, (distPwr / radiusPwr));
+            let pixelIndex = xyToArrayIndex(pixelX, pixelY, canvasAttributes.width)
+            let alpha = lerp(255, 0, (distPwr / radiusPwr));
 
-              let originalValue = newMask[pixelIndex] | 0;
+            let originalValue = newMask[pixelIndex] | 0;
 
-              if (alpha > originalValue) {
-                  newMask[pixelIndex] = alpha;
-                  changePixelToColour(ctx, [alpha, alpha, alpha, 255], pixelX, pixelY)
-                }
-              }
+            if (alpha > originalValue) {
+                newMask[pixelIndex] = alpha;
+                changePixelToColour(ctx, [alpha, alpha, alpha, 255], pixelX, pixelY)
+            }
             }
           }
         }
@@ -161,7 +170,7 @@ function App() {
   }
 
   const toggleMaskDisplayMode = () => {
-    if (matteMode === 2) setMatteMode(0)
+    if (matteMode === 3) setMatteMode(0)
     else setMatteMode(matteMode+1)
   }
 
@@ -262,15 +271,32 @@ function App() {
     else if (selectedPoint > colorSource.length - 1) return ""
 
     const onChangeEvent = (e) => {
-      colorSource[selectedPoint].threshold.radius = e.target.value; 
+      
+      // TODO : SET INDICATOR HOLDER REF . CURRENT TO FADE OUT
+      indicatorHolderRef.current.classList.add("fade-away-now")
+
+      if (editMode === 1) colorSource[selectedPoint].threshold.hue = e.target.value; 
+      if (editMode === 2) colorSource[selectedPoint].threshold.sat = e.target.value; 
+      if (editMode === 3) colorSource[selectedPoint].threshold.bri = e.target.value; 
+      if (editMode === 4) colorSource[selectedPoint].threshold.radius = e.target.value; 
+      
+      // indicatorHolderRef.current.offsetWidth;
+
       updateMaskImage()
     }
 
+    const getMinValue = () => (editMode === 4 ? 50 : 0.01)
+    const getMaxValue = () => (editMode === 4 ? 500 : 1)
+    const getStepValue = () => (editMode === 4 ? 10 : 0.01)
+
     const defaultValue = () => {
-      return colorSource[selectedPoint].threshold.radius
+      if (editMode === 1) return colorSource[selectedPoint].threshold.hue
+      if (editMode === 2) return colorSource[selectedPoint].threshold.sat
+      if (editMode === 3) return colorSource[selectedPoint].threshold.bri
+      if (editMode === 4) return colorSource[selectedPoint].threshold.radius
     };
 
-    return <input type="range" ind={selectedPoint} key={selectedPoint} className='left-row-btn range-toggle-slider ui-btn' min="50" max="500" onChange={onChangeEvent} defaultValue={defaultValue()}/>;
+    return <input type="range" ind={selectedPoint} key={editMode} className='left-row-btn range-toggle-slider ui-btn' min={`${getMinValue()}`} max={`${getMaxValue()}`} step={getStepValue()} onChange={onChangeEvent} defaultValue={defaultValue()}/>;
   }
 
   // STYLING
@@ -295,12 +321,14 @@ function App() {
     if (matteMode === 0) return {display: "none"}
     else if (matteMode === 1) return {opacity: opacity, mixBlendMode: 'lighten'}
     else if (matteMode === 2) return {opacity: opacity, mixBlendMode: 'multiply'}
+    else if (matteMode === 3) return {opacity: 0.9, mixBlendMode: 'normal'}
   }
 
   const getMatteMode = () => {
     if (matteMode === 0) return "hidden"
     else if (matteMode === 1) return "lighten"
     else if (matteMode === 2) return "multiply"
+    else if (matteMode === 3) return "BW"
   }
 
   useEffect(() => {
@@ -316,7 +344,7 @@ function App() {
       <div className="canvas-holder" data-image-direction={canvasHorizontal ? "horizontal" : "vertical"}>
           <div className="canvas-holder-inner" style={canvasAttributes ? {aspectRatio: `${canvasAttributes.width} / ${canvasAttributes.height}`} : {}}>
               <div className={canvasAttributes.width === 0 ? 'mask-mode-hint hidden' : "mask-mode-hint fade-away"} ref={maskModeHintRef}>{getMatteMode()}</div>
-              <div className="indicator-holder">
+              <div className="indicator-holder" ref={indicatorHolderRef}>
                 {colorSource.map((color, index) => {
                   let indicatorStyle = {
                     top: `${color.position[1] / canvasAttributes.height * 100}%`, 
@@ -335,11 +363,16 @@ function App() {
       {imageSource !== "" ? <>
         <button className="left-row-btn show-hide-canvas-btn ui-btn" onClick={toggleMaskDisplayMode}>toggle mask</button>
         <button className={getAddButtonClass()} onClick={handleAddButton}>{selectedPoint !== null ? "REMOVE COLOR SAMPLE" : "ADD COLOR SAMPLE"}</button>
-        <button className='left-row-btn ui-btn toggle-hue-btn' onClick={() => {setEditMode(1)}}>HUE</button>
-        <button className='left-row-btn ui-btn toggle-sat-btn' onClick={() => {setEditMode(2)}}>SAT</button>
-        <button className='left-row-btn ui-btn toggle-bri-btn' onClick={() => {setEditMode(3)}}>BRI</button>
+        {
+          selectedPoint !== null ? <>
+            <button className={editMode === 1 ? 'left-row-btn ui-btn toggle-hue-btn btn-active' : 'left-row-btn ui-btn toggle-hue-btn'} onClick={() => {setEditMode(1)}}>HUE</button>
+            <button className={editMode === 2 ? 'left-row-btn ui-btn toggle-sat-btn btn-active' : 'left-row-btn ui-btn toggle-sat-btn'} onClick={() => {setEditMode(2)}}>SAT</button>
+            <button className={editMode === 3 ? 'left-row-btn ui-btn toggle-bri-btn btn-active' : 'left-row-btn ui-btn toggle-bri-btn'} onClick={() => {setEditMode(3)}}>BRI</button>
+            <button className={editMode === 4 ? 'left-row-btn ui-btn toggle-rad-btn btn-active' : 'left-row-btn ui-btn toggle-rad-btn'} onClick={() => {setEditMode(4)}}>RADIUS</button>
+            <SliderElement/>
+          </> : ""
+        }
       </> : ""}
-      <SliderElement/>
       <button onClick={() => {setImageSource("./img.jpg")}} className='open-file-btn right-row-btn ui-btn'>OPEN FILE</button>
       <button onClick={() => {downloadCanvasAsJPEG(mainCanvasRef.current)}} className='right-row-btn ui-btn download-btn'>download as jpg</button>
     </div>

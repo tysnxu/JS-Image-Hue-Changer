@@ -28,6 +28,7 @@ Z-INDEX LAYERS:
 
 all-ui-buttons: 10
 indicators: 5
+instant-preview-blob : 4
 interaction-holder: 3
 blank-bg: 2
 matte-canvas: 1
@@ -68,6 +69,9 @@ main-canvas: 0
   transition-delay: 500ms;
 }
 
+.fade-away-now{
+  opacity: 0;
+}
 
 .main-canvas, .matte-canvas, .canvas-interaction-holder{
   position: absolute;
@@ -97,9 +101,12 @@ main-canvas: 0
   pointer-events: none;
 
   position: relative;
+  opacity: 1;
 
   height: 100%;
   width: 100%;
+
+  transition: opacity 1s ease-in-out;
 }
 
 .indicator{
@@ -129,6 +136,32 @@ main-canvas: 0
   outline: rgb(206, 255, 133) 0.2rem solid;
   transform: translateX(-50%) translateY(-50%) scale(1.5);
 }
+
+/* .instant-indicator-preview{
+  pointer-events: none;
+
+  height: 100%;
+  width: 100%;
+}
+
+.instant-preview-blob{
+  position: absolute;
+  pointer-events: none;
+  
+  width: 6rem;
+  height: 6rem;
+  
+  top: 51%;
+  left: 40.6%;
+  
+  transform: translateX(-50%) translateY(-50%); 
+
+  background: radial-gradient(circle, rgba(255,255,255,1) 0%, rgba(255,255,255,0.2) 46%, rgba(255,255,255,0) 60%);
+
+  border-radius: 100%;
+
+  z-index: 4;
+} */
 
 /* 
 ==========================
@@ -182,13 +215,16 @@ main-canvas: 0
 }
 
 .toggle-hue-btn {
-  top: 15rem;
+  top: 14rem;
 }
 .toggle-sat-btn {
   top: 16rem;
 }
 .toggle-bri-btn {
   top: 18rem;
+}
+.toggle-rad-btn {
+  top: 20rem;
 }
 
 .range-toggle-slider{
