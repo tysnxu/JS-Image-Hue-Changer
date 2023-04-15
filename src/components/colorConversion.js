@@ -47,7 +47,6 @@ export const hslToRgb = (h, s, l) => {
     return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
 }
 
-export const shiftHue = (h, s, l) => {
-    return [1, 1, 1]
-    return [1-h, s, l]
+export const shiftHue = (h, s, l, hueShiftAmount) => {
+    return [(h+hueShiftAmount / 360) % 1, s, l]
 }

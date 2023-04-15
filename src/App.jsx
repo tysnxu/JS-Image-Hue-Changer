@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 
 import {rgbToHsl, hslToRgb, shiftHue} from "./components/colorConversion"
@@ -28,18 +28,21 @@ function App() {
   const [imageSource, setImageSource] = useState("");
 
   const [matteMode, setMatteMode] = useState(2); // 0: HIDDEN | 1: LIGHTEN | 2 : MULTIPLY | 3 : NORMAL (BW)
-  const [editMode, setEditMode] = useState(0)  // -1: NO INTERACTION | 0: ADD | 1: CHANGE HUE | 2: CHANGE SATURATION | 3: CHANGE BRIGHTNESS | 4. CHANGE RADIUS
+  const [editMode, setEditMode] = useState(0)  // -1: NO INTERACTION | 0: ADD | 1: CHANGE HUE | 2: CHANGE SATURATION | 3: CHANGE BRIGHTNESS | 4. CHANGE RADIUS | 5. CHANGE SHIFTED HUE
+  const [hueShift, setHueShift] = useState(221);
 
   const [selectedPoint, setSelectedPoint] = useState(null);
+  const [showIndicator, setShowIndicator] = useState(true);
+  const [showRender, setShowRender] = useState(false);
 
   const mainCanvasRef = useRef(null);
   const mainContextRef = useRef(null);
   const maskCanvasRef = useRef(null);
 
-  // TODO: ADD HIDE INDICATORS
-
   const maskModeHintRef = useRef();
   const indicatorHolderRef = useRef();
+
+  const canvasImageRef = useRef(new Image());
 
   // UPDATE MASK ARRAY ON IMAGE UPDATE
   useEffect(() => {
@@ -61,10 +64,100 @@ function App() {
     if (colorSource.length !== 0) {setSelectedPoint(colorSource.length - 1)} else {setEditMode(0); setSelectedPoint(null);}
   }}, [colorSource])
 
-  useEffect(() => {if (canvasAttributes.width !== 0 && selectedPoint !== null && editMode !== 1 && editMode !== 2 && editMode !== 3) {
+  useEffect(() => {if (canvasAttributes.width !== 0 && selectedPoint !== null && editMode <= 1) {
     setEditMode(1)
-    
   }}, [selectedPoint])
+
+  
+  useEffect(() => {
+    if (showRender === false) return;
+    renderFinalImage()
+  }, [showRender, colorSource, hueShift]);
+
+  const renderFinalImage = useCallback(() => {
+    if (canvasImageRef.current === null) return;
+    let finalCanvas = document.querySelector(".final-render-canvas");
+
+    if (finalCanvas === null) return;
+    
+    let origImageWidth = canvasImageRef.current.naturalWidth;
+    let origImageHeight = canvasImageRef.current.naturalHeight;
+
+    let ctx = finalCanvas.getContext('2d', {willReadFrequently : true});
+
+    finalCanvas.width = origImageWidth;
+    finalCanvas.height = origImageHeight;
+    ctx.drawImage(canvasImageRef.current, 0, 0, origImageWidth, origImageHeight);
+
+    // GET ALL PIXEL COLOUR
+    var imageData = ctx.getImageData(0, 0, origImageWidth, origImageHeight);
+    var data = imageData.data;
+
+    let totalPixels = 0;
+    let affectedPixels = 0;
+    
+    colorSource.forEach(colorPoint => {
+      totalPixels++;
+
+      let targetHSL = colorPoint.color;
+
+      // GET COLOUR ORIGIN
+      let colourCenterX = Math.floor(colorPoint.position[0] / canvasAttributes.width * origImageWidth);
+      let colourCenterY = Math.floor(colorPoint.position[1] / canvasAttributes.height * origImageHeight);
+      let radius = Math.floor(colorPoint.threshold.radius / canvasAttributes.width * origImageWidth);
+      
+      // SHOULD NOT EXCEED LEFT RIGHT BOUNDAIES
+      let startPixelX = Math.max(colourCenterX - radius - 1, 0);
+      let endPixelX = Math.min(colourCenterX + radius + 1, origImageWidth);
+
+      // SHOULD NOT EXCEED TOP BOTTOM BOUNDAIES
+      let startPixelY = Math.max(colourCenterY - radius - 1, 0);
+      let endPixelY = Math.min(colourCenterY + radius + 1, origImageHeight);
+
+      let radiusPwr = radius * radius;
+
+      for (let pixelX = startPixelX; pixelX < endPixelX ; pixelX++) {
+        for (let pixelY = startPixelY; pixelY < endPixelY ; pixelY++) {
+          let distPwr = powerOfDistance(pixelX, pixelY, colourCenterX, colourCenterY);
+          
+          // 1. SEE IF PIXEL IS IN RANGE
+          if (distPwr < radiusPwr) {
+            affectedPixels++;
+
+            // GET PIXEL INDEX
+            let index = xyToArrayIndex(pixelX, pixelY, origImageWidth) * 4;
+
+            // 2. SEE IF COLOR FITS REQUIREMENT
+            let pixelColorRGB = [data[index], data[index + 1], data[index + 2]];
+
+            // GET AND COMPARE COLOR IN HSL
+            let pixelColorHSL = rgbToHsl(...pixelColorRGB);
+
+            let hueDiff = Math.abs(targetHSL[0] - pixelColorHSL[0]);
+            if (hueDiff > colorPoint.threshold.hue) { continue; }
+
+            let satDiff = Math.abs(targetHSL[1] - pixelColorHSL[1]);
+            if (satDiff > colorPoint.threshold.sat) { continue; }
+
+            let briDiff = Math.abs(targetHSL[2] - pixelColorHSL[2]);
+            if (briDiff > colorPoint.threshold.bri) { continue; }
+
+            // let alpha = lerp(255, 100, (distPwr / radiusPwr));
+
+            let shiftedHue = shiftHue(pixelColorHSL[0], pixelColorHSL[1], pixelColorHSL[2], hueShift);
+            let shiftedRGB = hslToRgb(...shiftedHue);
+
+            if (affectedPixels < 20) {
+              console.log(radius, index, shiftedHue, shiftedRGB)
+            }
+
+            changePixelToColour(ctx, [shiftedRGB[0], shiftedRGB[1], shiftedRGB[2], 255], pixelX, pixelY)
+            }
+          }
+        }
+      }
+    )
+  }, [colorSource, hueShift])
 
   const changeImageHolderDirection = () => {
     var windowRatio = window.innerWidth / window.innerHeight;
@@ -152,7 +245,7 @@ function App() {
             if (briDiff > colorPoint.threshold.bri) { continue; }
 
             let pixelIndex = xyToArrayIndex(pixelX, pixelY, canvasAttributes.width)
-            let alpha = lerp(255, 0, (distPwr / radiusPwr));
+            let alpha = lerp(255, 100, (distPwr / radiusPwr));
 
             let originalValue = newMask[pixelIndex] | 0;
 
@@ -267,33 +360,43 @@ function App() {
 
   // ELEMENTS 
   const SliderElement = () => {
-    if (selectedPoint === null) return "";
+    if (selectedPoint === null && editMode !== 5) return "";
     else if (selectedPoint > colorSource.length - 1) return ""
 
     const onChangeEvent = (e) => {
-      
-      // TODO : SET INDICATOR HOLDER REF . CURRENT TO FADE OUT
-      indicatorHolderRef.current.classList.add("fade-away-now")
-
       if (editMode === 1) colorSource[selectedPoint].threshold.hue = e.target.value; 
       if (editMode === 2) colorSource[selectedPoint].threshold.sat = e.target.value; 
       if (editMode === 3) colorSource[selectedPoint].threshold.bri = e.target.value; 
       if (editMode === 4) colorSource[selectedPoint].threshold.radius = e.target.value; 
-      
-      // indicatorHolderRef.current.offsetWidth;
+      if (editMode === 5) setHueShift(e.target.value); 
 
       updateMaskImage()
     }
 
-    const getMinValue = () => (editMode === 4 ? 50 : 0.01)
-    const getMaxValue = () => (editMode === 4 ? 500 : 1)
-    const getStepValue = () => (editMode === 4 ? 10 : 0.01)
+    const getMinValue = () => {
+      if (editMode === 4) {return 50;}
+      else if (editMode === 5) {return 1;}
+      else {return 0.01;}
+    }
+
+    const getMaxValue = () => {
+      if (editMode === 4) {return 500;}
+      else if (editMode === 5) {return 360;}
+      else {return 1;}
+    }
+
+    const getStepValue = () => {
+      if (editMode === 4) {return 10;}
+      else if (editMode === 5) {return 5;}
+      else {return 0.01;}
+    }
 
     const defaultValue = () => {
       if (editMode === 1) return colorSource[selectedPoint].threshold.hue
-      if (editMode === 2) return colorSource[selectedPoint].threshold.sat
-      if (editMode === 3) return colorSource[selectedPoint].threshold.bri
-      if (editMode === 4) return colorSource[selectedPoint].threshold.radius
+      else if (editMode === 2) return colorSource[selectedPoint].threshold.sat
+      else if (editMode === 3) return colorSource[selectedPoint].threshold.bri
+      else if (editMode === 4) return colorSource[selectedPoint].threshold.radius
+      else if (editMode === 5) return hueShift;
     };
 
     return <input type="range" ind={selectedPoint} key={editMode} className='left-row-btn range-toggle-slider ui-btn' min={`${getMinValue()}`} max={`${getMaxValue()}`} step={getStepValue()} onChange={onChangeEvent} defaultValue={defaultValue()}/>;
@@ -343,8 +446,9 @@ function App() {
     <div className="App">
       <div className="canvas-holder" data-image-direction={canvasHorizontal ? "horizontal" : "vertical"}>
           <div className="canvas-holder-inner" style={canvasAttributes ? {aspectRatio: `${canvasAttributes.width} / ${canvasAttributes.height}`} : {}}>
+              <canvas className={showRender ? 'final-render-canvas' : 'final-render-canvas hidden'}></canvas>
               <div className={canvasAttributes.width === 0 ? 'mask-mode-hint hidden' : "mask-mode-hint fade-away"} ref={maskModeHintRef}>{getMatteMode()}</div>
-              <div className="indicator-holder" ref={indicatorHolderRef}>
+              <div className={showIndicator ? "indicator-holder" : "indicator-holder hidden"} ref={indicatorHolderRef}>
                 {colorSource.map((color, index) => {
                   let indicatorStyle = {
                     top: `${color.position[1] / canvasAttributes.height * 100}%`, 
@@ -356,25 +460,32 @@ function App() {
               </div>
               <div className='canvas-interaction-holder' onClick={handleCanvasClicks}></div>
               <canvas className='matte-canvas' style={getMaskStyle()} ref={maskCanvasRef}></canvas>
-              <Canvas src={imageSource} changeImageHolderDirection={changeImageHolderDirection} canvasAttributes={canvasAttributes} setCanvasAttributes={setCanvasAttributes} mainCanvasRef={mainCanvasRef} contextRef={mainContextRef}/>
+              <Canvas src={imageSource} changeImageHolderDirection={changeImageHolderDirection} canvasAttributes={canvasAttributes} setCanvasAttributes={setCanvasAttributes} mainCanvasRef={mainCanvasRef} contextRef={mainContextRef} canvasImageRef={canvasImageRef}/>
           </div>
-          <div className='blank-background' onClick={deselectColourSample}></div>
+          <div className='blank-background' onClick={() => {deselectColourSample(); setShowRender(false)}}></div>
       </div>
       {imageSource !== "" ? <>
         <button className="left-row-btn show-hide-canvas-btn ui-btn" onClick={toggleMaskDisplayMode}>toggle mask</button>
         <button className={getAddButtonClass()} onClick={handleAddButton}>{selectedPoint !== null ? "REMOVE COLOR SAMPLE" : "ADD COLOR SAMPLE"}</button>
+        <button className='indicator-toggle-btn right-row-btn ui-btn' onClick={() => {setShowIndicator(!showIndicator)}}>TOGGLE INDICATOR</button>
+        <button className='right-row-btn ui-btn render-btn' onClick={() => {setShowRender(!showRender)}}>RENDER</button>
         {
           selectedPoint !== null ? <>
             <button className={editMode === 1 ? 'left-row-btn ui-btn toggle-hue-btn btn-active' : 'left-row-btn ui-btn toggle-hue-btn'} onClick={() => {setEditMode(1)}}>HUE</button>
             <button className={editMode === 2 ? 'left-row-btn ui-btn toggle-sat-btn btn-active' : 'left-row-btn ui-btn toggle-sat-btn'} onClick={() => {setEditMode(2)}}>SAT</button>
             <button className={editMode === 3 ? 'left-row-btn ui-btn toggle-bri-btn btn-active' : 'left-row-btn ui-btn toggle-bri-btn'} onClick={() => {setEditMode(3)}}>BRI</button>
             <button className={editMode === 4 ? 'left-row-btn ui-btn toggle-rad-btn btn-active' : 'left-row-btn ui-btn toggle-rad-btn'} onClick={() => {setEditMode(4)}}>RADIUS</button>
-            <SliderElement/>
+          </> : ""
+        }
+        <SliderElement/>
+        {
+          colorSource.length > 0 ? <>
+            <button className={editMode === 5 ? 'left-row-btn ui-btn change-hue-amount-btn btn-active' : 'left-row-btn ui-btn change-hue-amount-btn'} onClick={() => {setEditMode(5)}}>CHANGE HUE</button>
           </> : ""
         }
       </> : ""}
       <button onClick={() => {setImageSource("./img.jpg")}} className='open-file-btn right-row-btn ui-btn'>OPEN FILE</button>
-      <button onClick={() => {downloadCanvasAsJPEG(mainCanvasRef.current)}} className='right-row-btn ui-btn download-btn'>download as jpg</button>
+      <button onClick={() => {downloadCanvasAsJPEG(document.querySelector(".final-render-canvas"))}} className='right-row-btn ui-btn download-btn'>download as jpg</button>
     </div>
   )
 }

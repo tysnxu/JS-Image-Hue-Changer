@@ -4,14 +4,14 @@ import React from 'react';
 export const Canvas = React.memo( props => {
     const canvasRef = useRef(null);
     const contextRef = useRef(null);
-    const canvasImageRef = useRef(new Image());
+
+    // props.canvasImageRef = useRef();
 
     const imageDownScaleFactor = 2;  // SCALE DOWN THE IMAGE/CANVAS TO PRESERVE MEMORY
     
     var canvas = null;
     var context = null;
-    var canvasImage = null;
-
+    var canvasImage = props.canvasImageRef.current;
 
     useEffect(() => {props.contextRef.current = context}, [context])
 
@@ -51,18 +51,18 @@ export const Canvas = React.memo( props => {
         props.mainCanvasRef.current = canvasRef.current;
         context = contextRef.current;
 
-        canvasImage = canvasImageRef.current;
+        // canvasImage = props.canvasImageRef.current;
         canvasImage.onload = imageOnLoad;
 
         if (props.src != "") {
-            canvasImageRef.current.src = props.src;
+            props.canvasImageRef.current.src = props.src;
             props.changeImageHolderDirection();
         }
     }, [])
 
     useEffect(() => {
         if (props.src != "") {
-            canvasImageRef.current.src = props.src;
+            props.canvasImageRef.current.src = props.src;
             props.changeImageHolderDirection();
         }
     }, [props.src])

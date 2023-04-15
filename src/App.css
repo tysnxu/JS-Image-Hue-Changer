@@ -27,6 +27,7 @@ body{
 Z-INDEX LAYERS:
 
 all-ui-buttons: 10
+.final-render-canvas 9
 indicators: 5
 instant-preview-blob : 4
 interaction-holder: 3
@@ -69,11 +70,7 @@ main-canvas: 0
   transition-delay: 500ms;
 }
 
-.fade-away-now{
-  opacity: 0;
-}
-
-.main-canvas, .matte-canvas, .canvas-interaction-holder{
+.main-canvas, .matte-canvas, .canvas-interaction-holder, .final-render-canvas{
   position: absolute;
   height: 100%;
   width: 100%;
@@ -91,6 +88,10 @@ main-canvas: 0
 
 .canvas-interaction-holder{
   z-index: 3;
+}
+
+.final-render-canvas{
+  z-index: 9;
 }
 
 .hidden{
@@ -229,6 +230,18 @@ main-canvas: 0
 
 .range-toggle-slider{
   top: 10rem;
+}
+
+.indicator-toggle-btn{
+  top: 10rem
+}
+
+.render-btn{
+  top: 15rem;
+}
+
+.change-hue-amount-btn{
+  top: 25rem;
 }
 
 .clicked-color{
