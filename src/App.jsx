@@ -7,7 +7,7 @@ import {downloadCanvasAsJPEG} from "./components/fileIO"
 
 import {Canvas} from "./components/CanvasComponent"
 
-import useLongPress from "./components/useLongPress";
+import useLongPress from "./components/useLongPress";  // REMOVES THE COLOUR INDICATOR WHEN LONG PRESSED
 
 
 function App() {
@@ -34,6 +34,7 @@ function App() {
   const [selectedPoint, setSelectedPoint] = useState(null);
   const [showIndicator, setShowIndicator] = useState(true);
   const [showRender, setShowRender] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const mainCanvasRef = useRef(null);
   const mainContextRef = useRef(null);
@@ -48,6 +49,9 @@ function App() {
   useEffect(() => {
     document.querySelector(".matte-canvas").width = canvasAttributes.width;
     document.querySelector(".matte-canvas").height = canvasAttributes.height;
+    
+    document.querySelector(".preview-canvas").width = canvasAttributes.width;
+    document.querySelector(".preview-canvas").height = canvasAttributes.height;
 
     // FILLING THE CANVAS --> THIS MAKES THE PIXEL UPDATING WAY FASTER THAN WITH THE IMAGE NOT INITIALIZED
     let ctx = document.querySelector(".matte-canvas").getContext('2d', {willReadFrequently : true});
@@ -68,11 +72,15 @@ function App() {
     setEditMode(1)
   }}, [selectedPoint])
 
-  
   useEffect(() => {
     if (showRender === false) return;
     renderFinalImage()
   }, [showRender, colorSource, hueShift]);
+
+  useEffect(() => {
+    if (showPreview === false) return;
+    updatePreviewImage();
+  }, [showPreview, colorSource, hueShift]);
 
   const renderFinalImage = useCallback(() => {
     if (canvasImageRef.current === null) return;
@@ -158,29 +166,8 @@ function App() {
       }
     )
   }, [colorSource, hueShift])
-
-  const changeImageHolderDirection = () => {
-    var windowRatio = window.innerWidth / window.innerHeight;
-
-    if (canvasAttributes.ratio > windowRatio) {
-        setCanvasHorizontal(true)
-    } else {
-        setCanvasHorizontal(false)
-    }
-  }
-
-  const changePixelToColour = (ctx, rgbValues, pixelX, pixelY) => {
-    var id = ctx.createImageData(1,1);
-    var d = id.data;   
-    d[0] = rgbValues[0];  // RED
-    d[1] = rgbValues[1];  // GREEN
-    d[2] = rgbValues[2];  // BLUE
-    d[3] = rgbValues[3];  // ALPHA
-
-    ctx.putImageData( id, pixelX, pixelY );   
-  }
-
-  const updateMaskImage = () => {
+  
+  const updateMaskImage = useCallback(() => {
     if (canvasAttributes.width === 0) return false
 
     // GET ALL PIXEL COLOUR
@@ -260,6 +247,112 @@ function App() {
     )
 
     // console.log("UPDATE COLOR")
+
+  }, [colorSource])
+
+  const updatePreviewImage = useCallback(() => {
+    if (canvasAttributes.width === 0) return false
+
+    // GET ALL PIXEL COLOUR
+    var imageData = mainContextRef.current.getImageData(0, 0, canvasAttributes.width, canvasAttributes.height);
+    var data = imageData.data;
+
+    let totalPixels = 0;
+    let affectedPixels = 0;
+
+    // FILLING THE CANVAS --> THIS MAKES THE PIXEL UPDATING WAY FASTER THAN WITH THE IMAGE NOT INITIALIZED
+    let ctx = document.querySelector(".preview-canvas").getContext('2d', {willReadFrequently : true});
+
+    // ctx.beginPath();
+    // ctx.fillStyle = "rgba(0, 0, 0, 255)";
+    // ctx.fillRect(0, 0, canvasAttributes.width, canvasAttributes.height);
+    ctx.clearRect(0, 0, canvasAttributes.width, canvasAttributes.height);
+    
+    colorSource.forEach(colorPoint => {
+      totalPixels++;
+
+      let targetHSL = colorPoint.color;
+
+      // GET COLOUR ORIGIN
+      let colourCenterX = colorPoint.position[0];
+      let colourCenterY = colorPoint.position[1];
+      let radius = colorPoint.threshold.radius;
+      
+      // SHOULD NOT EXCEED LEFT RIGHT BOUNDAIES
+      let startPixelX = Math.max(colourCenterX - radius - 1, 0);
+      let endPixelX = Math.min(colourCenterX + radius + 1, canvasAttributes.width);
+
+      // SHOULD NOT EXCEED TOP BOTTOM BOUNDAIES
+      let startPixelY = Math.max(colourCenterY - radius - 1, 0);
+      let endPixelY = Math.min(colourCenterY + radius + 1, canvasAttributes.height);
+
+      let radiusPwr = radius * radius;
+
+      for (let pixelX = startPixelX; pixelX < endPixelX ; pixelX++) {
+        for (let pixelY = startPixelY; pixelY < endPixelY ; pixelY++) {
+          let distPwr = powerOfDistance(pixelX, pixelY, colourCenterX, colourCenterY);
+          
+          // 1. SEE IF PIXEL IS IN RANGE
+          if (distPwr < radiusPwr) {
+            affectedPixels++;
+
+            // 2. SEE IF COLOR FITS REQUIREMENT
+            let index = xyToArrayIndex(pixelX, pixelY, canvasAttributes.width) * 4;
+            let pixelColorRGB = [data[index], data[index + 1], data[index + 2]];
+
+            // GET AND COMPARE COLOR IN HSL
+            let pixelColorHSL = rgbToHsl(...pixelColorRGB);
+
+            let hueDiff = Math.abs(targetHSL[0] - pixelColorHSL[0]);
+            if (hueDiff > colorPoint.threshold.hue) { continue; }
+
+            let satDiff = Math.abs(targetHSL[1] - pixelColorHSL[1]);
+            if (satDiff > colorPoint.threshold.sat) { continue; }
+
+            let briDiff = Math.abs(targetHSL[2] - pixelColorHSL[2]);
+            if (briDiff > colorPoint.threshold.bri) { continue; }
+
+            let pixelIndex = xyToArrayIndex(pixelX, pixelY, canvasAttributes.width)
+            // let alpha = lerp(255, 100, (distPwr / radiusPwr));
+
+            let shiftedHue = shiftHue(pixelColorHSL[0], pixelColorHSL[1], pixelColorHSL[2], hueShift);
+            let shiftedRGB = hslToRgb(...shiftedHue);
+
+            // if (affectedPixels < 20) {
+            //   console.log(radius, index, shiftedHue, shiftedRGB)
+            // }
+
+            changePixelToColour(ctx, [shiftedRGB[0], shiftedRGB[1], shiftedRGB[2], 255], pixelX, pixelY)
+            }
+          }
+        }
+      }
+    )
+
+    // console.log("UPDATE COLOR")
+
+  }, [colorSource, hueShift])
+
+
+  const changeImageHolderDirection = () => {
+    var windowRatio = window.innerWidth / window.innerHeight;
+
+    if (canvasAttributes.ratio > windowRatio) {
+        setCanvasHorizontal(true)
+    } else {
+        setCanvasHorizontal(false)
+    }
+  }
+
+  const changePixelToColour = (ctx, rgbValues, pixelX, pixelY) => {
+    var id = ctx.createImageData(1,1);
+    var d = id.data;   
+    d[0] = rgbValues[0];  // RED
+    d[1] = rgbValues[1];  // GREEN
+    d[2] = rgbValues[2];  // BLUE
+    d[3] = rgbValues[3];  // ALPHA
+
+    ctx.putImageData( id, pixelX, pixelY );   
   }
 
   const deselectColourSample = () => {
@@ -299,6 +392,8 @@ function App() {
               }
           }
       ])
+
+      if (!showIndicator) {setShowIndicator(true)};
   }
 
   const removeIndicator = (selectedIndex) => {
@@ -341,6 +436,7 @@ function App() {
     // SET MODE --> ADD POINT
     editMode === 0 ? setEditMode(-1) : setEditMode(0);
 
+    if (showPreview) {setShowPreview(false)}
     if (showRender) {setShowRender(false)}
 
     if (selectedPoint !== null) {
@@ -355,6 +451,7 @@ function App() {
   }
 
   const toggleMaskDisplayMode = () => {
+    if (showPreview) {setShowPreview(false)}
     if (showRender) {setShowRender(false)}
 
     if (matteMode === 3) setMatteMode(0)
@@ -363,6 +460,10 @@ function App() {
 
   const handleRenderCanvasClick = () => {
     if (showRender) {setShowRender(false)}
+  }
+
+  const handlePreviewCanvasClick = () => {
+    if (showPreview) {setShowPreview(false)}
   }
 
   // LONG PRESS
@@ -461,6 +562,7 @@ function App() {
       <div className="canvas-holder" data-image-direction={canvasHorizontal ? "horizontal" : "vertical"}>
           <div className="canvas-holder-inner" style={canvasAttributes ? {aspectRatio: `${canvasAttributes.width} / ${canvasAttributes.height}`} : {}}>
               <canvas className={showRender ? 'final-render-canvas' : 'final-render-canvas hidden'} onClick={handleRenderCanvasClick}></canvas>
+              <canvas className={showPreview ? 'preview-canvas' : 'preview-canvas hidden'} onClick={handlePreviewCanvasClick}></canvas>
               <div className={canvasAttributes.width === 0 ? 'mask-mode-hint hidden' : "mask-mode-hint fade-away"} ref={maskModeHintRef}>{getMatteMode()}</div>
               <div className={showIndicator ? "indicator-holder" : "indicator-holder hidden"} ref={indicatorHolderRef}>
                 {colorSource.map((color, index) => {
@@ -483,7 +585,7 @@ function App() {
         <button className="left-row-btn show-hide-canvas-btn ui-btn" onClick={toggleMaskDisplayMode}>toggle mask</button>
         <button className={getAddButtonClass()} onClick={handleAddButton}>{selectedPoint !== null ? "REMOVE COLOR SAMPLE" : "ADD COLOR SAMPLE"}</button>
         <button className='indicator-toggle-btn right-row-btn ui-btn' onClick={() => {setShowIndicator(!showIndicator)}}>TOGGLE INDICATOR</button>
-        {/* <button className='right-row-btn ui-btn render-btn' onClick={() => {}}>RENDER</button> */}
+        <button className='right-row-btn ui-btn preview-btn' onClick={() => {setShowPreview(!showPreview)}}>{showPreview ? "HIDE PREVIEW" : "SHOW PREVIEW"}</button>
         {
           selectedPoint !== null ? <>
             <button className={editMode === 1 ? 'left-row-btn ui-btn toggle-hue-btn btn-active' : 'left-row-btn ui-btn toggle-hue-btn'} onClick={() => {setEditMode(1)}}>HUE</button>

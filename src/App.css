@@ -28,6 +28,7 @@ Z-INDEX LAYERS:
 
 all-ui-buttons: 10
 .final-render-canvas 9
+.preview-canvas 8
 indicators: 5
 instant-preview-blob : 4
 interaction-holder: 3
@@ -70,7 +71,7 @@ main-canvas: 0
   transition-delay: 500ms;
 }
 
-.main-canvas, .matte-canvas, .canvas-interaction-holder, .final-render-canvas{
+.main-canvas, .matte-canvas, .canvas-interaction-holder, .final-render-canvas, .preview-canvas{
   position: absolute;
   height: 100%;
   width: 100%;
@@ -94,8 +95,14 @@ main-canvas: 0
   z-index: 9;
 }
 
+.preview-canvas{
+  opacity: 1;
+  z-index: 8;
+}
+
 .hidden{
   display: none;
+  opacity: 0;
 }
 
 .indicator-holder{
@@ -137,6 +144,8 @@ main-canvas: 0
   outline: rgb(206, 255, 133) 0.2rem solid;
   transform: translateX(-50%) translateY(-50%) scale(1.5);
 }
+
+
 
 /* .instant-indicator-preview{
   pointer-events: none;
@@ -236,7 +245,7 @@ main-canvas: 0
   top: 10rem
 }
 
-.render-btn{
+.preview-btn{
   top: 15rem;
 }
 
