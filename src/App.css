@@ -69,6 +69,8 @@ main-canvas: 0
   opacity: 0;
   transition: opacity 1s ease-in-out;
   transition-delay: 500ms;
+  user-select: none;
+  pointer-events: none;
 }
 
 .main-canvas, .matte-canvas, .canvas-interaction-holder, .final-render-canvas, .preview-canvas{
