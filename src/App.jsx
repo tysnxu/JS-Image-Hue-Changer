@@ -147,9 +147,9 @@ function App() {
             let shiftedHue = shiftHue(pixelColorHSL[0], pixelColorHSL[1], pixelColorHSL[2], hueShift);
             let shiftedRGB = hslToRgb(...shiftedHue);
 
-            if (affectedPixels < 20) {
-              console.log(radius, index, shiftedHue, shiftedRGB)
-            }
+            // if (affectedPixels < 20) {
+            //   console.log(radius, index, shiftedHue, shiftedRGB)
+            // }
 
             changePixelToColour(ctx, [shiftedRGB[0], shiftedRGB[1], shiftedRGB[2], 255], pixelX, pixelY)
             }
@@ -262,54 +262,9 @@ function App() {
     // console.log("UPDATE COLOR")
   }
 
-  const toggleMaskDisplayMode = () => {
-    if (matteMode === 3) setMatteMode(0)
-    else setMatteMode(matteMode+1)
-  }
-
-  const handleAddButton = () => {
-    // SET MODE --> ADD POINT
-    editMode === 0 ? setEditMode(-1) : setEditMode(0);
-
-    if (selectedPoint !== null) {
-      if (colorSource.length === 0) {
-        let ctx = document.querySelector(".matte-canvas").getContext('2d', {willReadFrequently : true});
-        ctx.clearRect(0, 0, canvasAttributes.width, canvasAttributes.height);
-      }
-
-      // REMOVE POINT
-      removeIndicator(selectedPoint);
-    }
-  }
-
   const deselectColourSample = () => {
     setSelectedPoint(null);
     setEditMode(-1);
-  }
-
-  const handleCanvasClicks = (e) => {
-    if (editMode !== 0) {
-        deselectColourSample();
-        return ;
-    }
-
-    let {mouseX, mouseY} = getMouseClickPosition(e);
-
-    // Get the pixel color data at the clicked point
-    var pixelData = mainContextRef.current.getImageData(mouseX, mouseY, 1, 1).data;
-
-    // Get the RGB color values from the pixel data
-    var red = pixelData[0];
-    var green = pixelData[1];
-    var blue = pixelData[2];
-
-    if (canvasAttributes.ratio !== 0) {
-        // ONLY ADD COLOUR SAMPLE IF IN "ADD COLOUR MODE"
-        addIndicator(mouseX, mouseY, [red, green, blue]);
-    }
-
-    // Display the color in the console
-    console.log(`Clicked color: rgb(${red}, ${green}, ${blue}) @ [${mouseX}, ${mouseY}]`);
   }
 
   const getMouseClickPosition = (e) => {
@@ -349,6 +304,65 @@ function App() {
   const removeIndicator = (selectedIndex) => {
     if (typeof selectedIndex !== "number") selectedIndex = parseInt(selectedIndex)
     setcolorSource(colorSource.filter((_, index) => (index !== selectedIndex)))
+  }
+
+  // EVENTS
+  const handleCanvasClicks = (e) => {
+    if (editMode !== 0) {
+        deselectColourSample();
+        return ;
+    }
+
+    let {mouseX, mouseY} = getMouseClickPosition(e);
+
+    // Get the pixel color data at the clicked point
+    var pixelData = mainContextRef.current.getImageData(mouseX, mouseY, 1, 1).data;
+
+    // Get the RGB color values from the pixel data
+    var red = pixelData[0];
+    var green = pixelData[1];
+    var blue = pixelData[2];
+
+    if (canvasAttributes.ratio !== 0) {
+        // ONLY ADD COLOUR SAMPLE IF IN "ADD COLOUR MODE"
+        addIndicator(mouseX, mouseY, [red, green, blue]);
+    }
+
+    // Display the color in the console
+    console.log(`Clicked color: rgb(${red}, ${green}, ${blue}) @ [${mouseX}, ${mouseY}]`);
+  }
+
+  const renderButtonEvent = () => {
+    if (showRender) {downloadCanvasAsJPEG(document.querySelector(".final-render-canvas"))}
+    else {setShowRender(true)}
+  }
+  
+  const handleAddButton = () => {
+    // SET MODE --> ADD POINT
+    editMode === 0 ? setEditMode(-1) : setEditMode(0);
+
+    if (showRender) {setShowRender(false)}
+
+    if (selectedPoint !== null) {
+      if (colorSource.length === 0) {
+        let ctx = document.querySelector(".matte-canvas").getContext('2d', {willReadFrequently : true});
+        ctx.clearRect(0, 0, canvasAttributes.width, canvasAttributes.height);
+      }
+
+      // REMOVE POINT
+      removeIndicator(selectedPoint);
+    }
+  }
+
+  const toggleMaskDisplayMode = () => {
+    if (showRender) {setShowRender(false)}
+
+    if (matteMode === 3) setMatteMode(0)
+    else setMatteMode(matteMode+1)
+  }
+
+  const handleRenderCanvasClick = () => {
+    if (showRender) {setShowRender(false)}
   }
 
   // LONG PRESS
@@ -446,7 +460,7 @@ function App() {
     <div className="App">
       <div className="canvas-holder" data-image-direction={canvasHorizontal ? "horizontal" : "vertical"}>
           <div className="canvas-holder-inner" style={canvasAttributes ? {aspectRatio: `${canvasAttributes.width} / ${canvasAttributes.height}`} : {}}>
-              <canvas className={showRender ? 'final-render-canvas' : 'final-render-canvas hidden'}></canvas>
+              <canvas className={showRender ? 'final-render-canvas' : 'final-render-canvas hidden'} onClick={handleRenderCanvasClick}></canvas>
               <div className={canvasAttributes.width === 0 ? 'mask-mode-hint hidden' : "mask-mode-hint fade-away"} ref={maskModeHintRef}>{getMatteMode()}</div>
               <div className={showIndicator ? "indicator-holder" : "indicator-holder hidden"} ref={indicatorHolderRef}>
                 {colorSource.map((color, index) => {
@@ -465,10 +479,11 @@ function App() {
           <div className='blank-background' onClick={() => {deselectColourSample(); setShowRender(false)}}></div>
       </div>
       {imageSource !== "" ? <>
+        <button onClick={renderButtonEvent} className='right-row-btn ui-btn download-btn'>{showRender ? "download as jpg" : "Render"}</button>
         <button className="left-row-btn show-hide-canvas-btn ui-btn" onClick={toggleMaskDisplayMode}>toggle mask</button>
         <button className={getAddButtonClass()} onClick={handleAddButton}>{selectedPoint !== null ? "REMOVE COLOR SAMPLE" : "ADD COLOR SAMPLE"}</button>
         <button className='indicator-toggle-btn right-row-btn ui-btn' onClick={() => {setShowIndicator(!showIndicator)}}>TOGGLE INDICATOR</button>
-        <button className='right-row-btn ui-btn render-btn' onClick={() => {setShowRender(!showRender)}}>RENDER</button>
+        {/* <button className='right-row-btn ui-btn render-btn' onClick={() => {}}>RENDER</button> */}
         {
           selectedPoint !== null ? <>
             <button className={editMode === 1 ? 'left-row-btn ui-btn toggle-hue-btn btn-active' : 'left-row-btn ui-btn toggle-hue-btn'} onClick={() => {setEditMode(1)}}>HUE</button>
@@ -485,7 +500,6 @@ function App() {
         }
       </> : ""}
       <button onClick={() => {setImageSource("./img.jpg")}} className='open-file-btn right-row-btn ui-btn'>OPEN FILE</button>
-      <button onClick={() => {downloadCanvasAsJPEG(document.querySelector(".final-render-canvas"))}} className='right-row-btn ui-btn download-btn'>download as jpg</button>
     </div>
   )
 }
