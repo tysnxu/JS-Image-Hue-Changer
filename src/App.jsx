@@ -5,8 +5,6 @@ import {rgbToHsl, hslToRgb, shiftHue} from "./components/colorConversion"
 import {xyToArrayIndex, indexToXY, powerOfDistance, inRange, lerp} from "./components/coordinateCalc"
 import {downloadCanvasAsJPEG} from "./components/fileIO"
 
-import {Canvas} from "./components/CanvasComponent"
-
 import useLongPress from "./components/useLongPress";  // REMOVES THE COLOUR INDICATOR WHEN LONG PRESSED
 
 
@@ -25,7 +23,7 @@ function App() {
 
   const [canvasAttributes, setCanvasAttributes] = useState({width: 0, height: 0, ratio: 0,})
   const [canvasHorizontal, setCanvasHorizontal] = useState(false);
-  const [imageSource, setImageSource] = useState("");
+  const [imageFile, setImageFile] = useState();
 
   const [matteMode, setMatteMode] = useState(2); // 0: HIDDEN | 1: LIGHTEN | 2 : MULTIPLY | 3 : NORMAL (BW)
   const [editMode, setEditMode] = useState(0)  // -1: NO INTERACTION | 0: ADD | 1: CHANGE HUE | 2: CHANGE SATURATION | 3: CHANGE BRIGHTNESS | 4. CHANGE RADIUS | 5. CHANGE SHIFTED HUE
@@ -44,24 +42,7 @@ function App() {
   const indicatorHolderRef = useRef();
 
   const canvasImageRef = useRef(new Image());
-
-  // UPDATE MASK ARRAY ON IMAGE UPDATE
-  useEffect(() => {
-    document.querySelector(".matte-canvas").width = canvasAttributes.width;
-    document.querySelector(".matte-canvas").height = canvasAttributes.height;
-    
-    document.querySelector(".preview-canvas").width = canvasAttributes.width;
-    document.querySelector(".preview-canvas").height = canvasAttributes.height;
-
-    // FILLING THE CANVAS --> THIS MAKES THE PIXEL UPDATING WAY FASTER THAN WITH THE IMAGE NOT INITIALIZED
-    let ctx = document.querySelector(".matte-canvas").getContext('2d', {willReadFrequently : true});
-    ctx.beginPath();
-    ctx.fillStyle = "rgba(0, 0, 0, 0)";
-    ctx.fillRect(0, 0, canvasAttributes.width, canvasAttributes.height);
-
-    changeImageHolderDirection()
-    window.addEventListener('resize', changeImageHolderDirection);
-  }, [canvasAttributes])
+  const imageDownScaleFactor = 2;  // SCALE DOWN THE IMAGE/CANVAS TO PRESERVE MEMORY
 
   useEffect(() => {if (canvasAttributes.width !== 0) {
     updateMaskImage()
@@ -81,6 +62,54 @@ function App() {
     if (showPreview === false) return;
     updatePreviewImage();
   }, [showPreview, colorSource, hueShift]);
+
+
+  const imageOnLoad = () => {
+    let canvasImage = canvasImageRef.current;
+
+    // Get the size of the image
+    let imageWidth = canvasImage.naturalWidth;
+    let imageHeight = canvasImage.naturalHeight;
+
+    imageWidth = Math.floor(imageWidth / imageDownScaleFactor);
+    imageHeight = Math.floor(imageHeight / imageDownScaleFactor);
+
+    let imageAspectRatio = imageWidth / imageHeight;
+
+    console.log(`OPENING IMAGE: ${imageWidth} / ${imageHeight}`)
+    
+    // Set the size of the canvas to match the image size
+    mainCanvasRef.current.width = imageWidth;
+    mainCanvasRef.current.height = imageHeight;
+    document.querySelector(".matte-canvas").width = imageWidth;
+    document.querySelector(".matte-canvas").height = imageHeight;
+    document.querySelector(".preview-canvas").width = imageWidth;
+    document.querySelector(".preview-canvas").height = imageHeight;
+
+    // Draw the scaled-down image onto the canvas
+    mainContextRef.current.drawImage(canvasImage, 0, 0, imageWidth, imageHeight);
+    
+    // FILLING THE CANVAS --> THIS MAKES THE PIXEL UPDATING WAY FASTER THAN WITH THE IMAGE NOT INITIALIZED
+    let ctx = document.querySelector(".matte-canvas").getContext('2d', {willReadFrequently : true});
+    ctx.beginPath();
+    ctx.fillStyle = "rgba(0, 0, 0, 0)";
+    ctx.fillRect(0, 0, imageWidth, imageHeight);
+
+    setCanvasAttributes({
+      width: imageWidth,
+      height: imageHeight,
+      ratio: imageAspectRatio,
+    });
+
+    changeImageHolderDirection(imageAspectRatio);
+
+    window.addEventListener('resize', () => {changeImageHolderDirection(imageAspectRatio)});
+  }
+
+  useEffect(() => {
+    mainContextRef.current = mainCanvasRef.current.getContext('2d', {willReadFrequently : true});
+    canvasImageRef.current.onload = imageOnLoad;
+  }, []);
 
   const renderFinalImage = useCallback(() => {
     if (canvasImageRef.current === null) return;
@@ -333,11 +362,16 @@ function App() {
 
   }, [colorSource, hueShift])
 
+  const chooseImage = () => {
+    document.getElementById("image-uploader").click();
+  }
 
-  const changeImageHolderDirection = () => {
+  const changeImageHolderDirection = (imageRatio) => {
     var windowRatio = window.innerWidth / window.innerHeight;
 
-    if (canvasAttributes.ratio > windowRatio) {
+    // let ratio = imageRatio || parseFloat(document.querySelector(".canvas-holder-inner").getAttribute("data-ratio"));
+
+    if (imageRatio > windowRatio) {
         setCanvasHorizontal(true)
     } else {
         setCanvasHorizontal(false)
@@ -402,6 +436,12 @@ function App() {
   }
 
   // EVENTS
+  const handleChooseImage = (e) => {
+    let imageAsURL = URL.createObjectURL(e.target.files[0]);
+    canvasImageRef.current.src = imageAsURL;
+    setImageFile(imageAsURL);
+  }
+
   const handleCanvasClicks = (e) => {
     if (editMode !== 0) {
         deselectColourSample();
@@ -576,11 +616,11 @@ function App() {
               </div>
               <div className='canvas-interaction-holder' onClick={handleCanvasClicks}></div>
               <canvas className='matte-canvas' style={getMaskStyle()} ref={maskCanvasRef}></canvas>
-              <Canvas src={imageSource} changeImageHolderDirection={changeImageHolderDirection} canvasAttributes={canvasAttributes} setCanvasAttributes={setCanvasAttributes} mainCanvasRef={mainCanvasRef} contextRef={mainContextRef} canvasImageRef={canvasImageRef}/>
+              <canvas className='main-canvas' ref={mainCanvasRef}/>
           </div>
           <div className='blank-background' onClick={() => {deselectColourSample(); setShowRender(false)}}></div>
       </div>
-      {imageSource !== "" ? <>
+      {imageFile !== undefined ? <>
         <button onClick={renderButtonEvent} className='right-row-btn ui-btn download-btn'>{showRender ? "download as jpg" : "Render"}</button>
         <button className="left-row-btn show-hide-canvas-btn ui-btn" onClick={toggleMaskDisplayMode}>toggle mask</button>
         <button className={getAddButtonClass()} onClick={handleAddButton}>{selectedPoint !== null ? "REMOVE COLOR SAMPLE" : "ADD COLOR SAMPLE"}</button>
@@ -601,7 +641,8 @@ function App() {
           </> : ""
         }
       </> : ""}
-      <button onClick={() => {setImageSource("./img.jpg")}} className='open-file-btn right-row-btn ui-btn'>OPEN FILE</button>
+      <button onClick={chooseImage} className='open-file-btn right-row-btn ui-btn'>OPEN FILE</button>
+      <input type="file" accept="image/png, image/jpeg" id='image-uploader' onChange={handleChooseImage} className='hidden' />
     </div>
   )
 }
