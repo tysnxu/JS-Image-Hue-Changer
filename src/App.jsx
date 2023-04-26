@@ -537,7 +537,7 @@ function App() {
               setHueShift(newValue);
             } else {
               const newColourSource = colorSource.map((value, index) => {
-                if (index === selectedPoint) {
+                if (value.id === selectedPoint) {
                   if (editMode === 1) value.threshold.hue = newValue; 
                   else if (editMode === 2) value.threshold.sat = newValue; 
                   else if (editMode === 3) value.threshold.bri = newValue; 
@@ -663,15 +663,25 @@ function App() {
 
   // ELEMENTS 
   const SliderElement = () => {
-    if (selectedPoint === null && editMode !== 5) return "";
-    else if (selectedPoint > colorSource.length - 1) return ""
+    if (selectedPoint === null && editMode !== 5) {return ""}
 
     const onChangeEvent = (e) => {
-      if (editMode === 1) colorSource[selectedPoint].threshold.hue = e.target.value; 
-      if (editMode === 2) colorSource[selectedPoint].threshold.sat = e.target.value; 
-      if (editMode === 3) colorSource[selectedPoint].threshold.bri = e.target.value; 
-      if (editMode === 4) colorSource[selectedPoint].threshold.radius = e.target.value; 
-      if (editMode === 5) setHueShift(e.target.value); 
+      if (editMode === 5) {
+        setHueShift(e.target.value);
+      } else {
+        const newColourSource = colorSource.map((value, index) => {
+          if (value.id === selectedPoint) {
+            if (editMode === 1) value.threshold.hue = e.target.value; 
+            else if (editMode === 2) value.threshold.sat = e.target.value; 
+            else if (editMode === 3) value.threshold.bri = e.target.value; 
+            else if (editMode === 4) value.threshold.radius = e.target.value; 
+          }
+
+          return value;
+        });
+
+        setColorSource(newColourSource);
+      }
 
       updateMaskImage()
     }
@@ -695,11 +705,16 @@ function App() {
     }
 
     const defaultValue = () => {
-      if (editMode === 1) return colorSource[selectedPoint].threshold.hue
-      else if (editMode === 2) return colorSource[selectedPoint].threshold.sat
-      else if (editMode === 3) return colorSource[selectedPoint].threshold.bri
-      else if (editMode === 4) return colorSource[selectedPoint].threshold.radius
-      else if (editMode === 5) return hueShift;
+      if (editMode === 5) return hueShift;
+
+      [...colorSource].forEach(color => {
+        if (color.id === selectedPoint) {
+          if (editMode === 1) return color.threshold.hue
+          else if (editMode === 2) return color.threshold.sat
+          else if (editMode === 3) return color.threshold.bri
+          else if (editMode === 4) return color.threshold.radius 
+        }
+      })
     };
 
     return <input type="range" ind={selectedPoint} key={editMode} className='left-row-btn range-toggle-slider ui-btn' min={`${getMinValue()}`} max={`${getMaxValue()}`} step={getStepValue()} onChange={onChangeEvent} defaultValue={defaultValue()}/>;
@@ -763,7 +778,7 @@ function App() {
             <button className={editMode === 4 ? 'left-row-btn ui-btn toggle-rad-btn btn-active' : 'left-row-btn ui-btn toggle-rad-btn'} onTouchEnd={() => {setEditMode(4)}}>RADIUS</button>
           </>
         }
-        <SliderElement/>
+        <SliderElement />
         {
           colorSource.length > 0 ? <>
             <button className={editMode === 5 ? 'left-row-btn ui-btn change-hue-amount-btn btn-active' : 'left-row-btn ui-btn change-hue-amount-btn'} onTouchEnd={() => {setEditMode(5)}}>CHANGE HUE</button>
