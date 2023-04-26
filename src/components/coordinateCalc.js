@@ -16,6 +16,17 @@ export const powerOfDistance = (p1X, p1Y, p2X, p2Y) => {
     return xDiff * xDiff + yDiff * yDiff;
 }
 
+export const getDistance = (p1X, p1Y, p2X, p2Y) => {
+    return Math.sqrt(powerOfDistance(p1X, p1Y, p2X, p2Y));
+}
+
+export const midPoint = (p1X, p1Y, p2X, p2Y) => {
+    let midPointX = (p1X + p2X) / 2;
+    let midPointY = (p1Y + p2Y) / 2;
+
+    return [midPointX, midPointY]
+}
+
 export const inRange = (p1X, p1Y, p2X, p2Y, distanceThreshold) => {
     return powerOfDistance(p1X, p1Y, p2X, p2Y) < distanceThreshold * distanceThreshold;
 }

@@ -3,7 +3,7 @@ body{
   overflow: hidden;
 }
 
-.canvas-holder{
+.canvas-holder, .indicator-holder-outer{
   position: relative;
 
   width: 100vw;
@@ -14,24 +14,33 @@ body{
   justify-content: center;
 }
 
-.canvas-holder[data-image-direction="horizontal"] {
+.canvas-holder[data-image-direction="horizontal"], .indicator-holder-outer[data-image-direction="horizontal"] {
   flex-direction: column;
 }
 
-.canvas-holder[data-image-direction="vertical"] {
+.canvas-holder[data-image-direction="vertical"], .indicator-holder-outer[data-image-direction="vertical"] {
   flex-direction: row;
+}
+
+.indicator-holder-outer{
+  pointer-events: none;
+  position: absolute;
+
+  z-index: 20;
 }
 
 /* 
 
 Z-INDEX LAYERS:
 
-all-ui-buttons: 10
+all-ui-buttons: 50
+
+indicators: 20
+canvas mover interaction layer: 10
+
 .final-render-canvas 9
 .preview-canvas 8
-indicators: 5
 instant-preview-blob : 4
-interaction-holder: 3
 blank-bg: 2
 matte-canvas: 1
 main-canvas: 0
@@ -73,7 +82,15 @@ main-canvas: 0
   pointer-events: none;
 }
 
-.main-canvas, .matte-canvas, .canvas-interaction-holder, .final-render-canvas, .preview-canvas{
+.canvas-mover-layer{
+  position: fixed;
+
+  inset: 0;
+
+  z-index: 10;
+}
+
+.main-canvas, .matte-canvas, .final-render-canvas, .preview-canvas{
   position: absolute;
   height: 100%;
   width: 100%;
@@ -87,10 +104,6 @@ main-canvas: 0
 .matte-canvas{
   z-index: 1;
   pointer-events: none;
-}
-
-.canvas-interaction-holder{
-  z-index: 3;
 }
 
 .final-render-canvas{
@@ -108,13 +121,8 @@ main-canvas: 0
 }
 
 .indicator-holder{
-  pointer-events: none;
-
   position: relative;
   opacity: 1;
-
-  height: 100%;
-  width: 100%;
 
   transition: opacity 1s ease-in-out;
 }
@@ -135,45 +143,17 @@ main-canvas: 0
   border-radius: 1rem;
   outline: white 0.2rem solid;
 
-  z-index: 5;
+  z-index: 20;
 
   transition: transform 0.2s;
 
   box-shadow: 2px 2px 5px black;
 }
 
-.indicator[data-selected="1"], .indicator:hover, .indicator:active{
+.indicator[data-selected="1"]{
   outline: rgb(206, 255, 133) 0.2rem solid;
   transform: translateX(-50%) translateY(-50%) scale(1.5);
 }
-
-
-
-/* .instant-indicator-preview{
-  pointer-events: none;
-
-  height: 100%;
-  width: 100%;
-}
-
-.instant-preview-blob{
-  position: absolute;
-  pointer-events: none;
-  
-  width: 6rem;
-  height: 6rem;
-  
-  top: 51%;
-  left: 40.6%;
-  
-  transform: translateX(-50%) translateY(-50%); 
-
-  background: radial-gradient(circle, rgba(255,255,255,1) 0%, rgba(255,255,255,0.2) 46%, rgba(255,255,255,0) 60%);
-
-  border-radius: 100%;
-
-  z-index: 4;
-} */
 
 /* 
 ==========================
@@ -182,8 +162,8 @@ main-canvas: 0
 */
 
 .ui-btn{
-  position: fixed;
-  z-index: 10;
+  position: absolute;
+  z-index: 50;
 }
 
 
@@ -216,8 +196,6 @@ main-canvas: 0
 }
 
 .open-file-btn{
-  position: fixed;
-
   top: 1rem;
   right: 2rem;
 }
@@ -249,6 +227,18 @@ main-canvas: 0
 
 .preview-btn{
   top: 15rem;
+}
+
+.plus-btn{
+  top: 20rem;
+}
+
+.minus-btn{
+  top: 22rem;
+}
+
+.left-btn{
+  top: 24rem;
 }
 
 .change-hue-amount-btn{
