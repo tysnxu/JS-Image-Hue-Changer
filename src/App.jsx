@@ -426,12 +426,15 @@ function App() {
       let imageAsURL = URL.createObjectURL(e.target.files[0]);
       canvasImageRef.current.src = imageAsURL;
       setImageFile(imageAsURL);
+      setColorSource([]);
     } else {
       console.log("DID NOT SELECT IMAGE.")
     }
   }
 
-  const renderButtonEvent = () => {
+  const renderButtonEvent = (e) => {
+    e.stopPropagation();
+
     setShowRender(showRender => {
       let newMode = !showRender;
 
@@ -452,19 +455,26 @@ function App() {
       // IF ENABLING PREVIEW
       if (newMode === true) {
         setShowIndicator(false)  // HIDE INDICATOR
+        setShowRender(false)  // HIDE FINAL RENDER
         setMatteMode(0)  // HIDE MASK
+      } else {
+        setShowIndicator(true)  // SHOW INDICATOR
+        setMatteMode(2)  // HIDE MASK
       }
       return newMode;
     });
   }
   
   const handleAddButton = (e) => {
+    if (editMode === -1) setShowIndicator(true);
+
     // SET MODE --> ADD POINT
     editMode === 0 ? setEditMode(-1) : setEditMode(0);
-
+    
     if (showPreview) {setShowPreview(false)}
     if (showRender) {setShowRender(false)}
 
+    // SELECTED POINT --> DELETE MODE
     if (selectedPoint !== null) {
       if (colorSource.length === 0) {
         let ctx = document.querySelector(".matte-canvas").getContext('2d', {willReadFrequently : true});
@@ -523,7 +533,8 @@ function App() {
 
           if (slider && e.target.getAttribute("data-initial-touch")) {
             startTouchX = parseFloat(e.target.getAttribute("data-initial-touch").split(", ")[0]);
-            let value = parseFloat(slider.value || 0.5);
+
+            let value = getSliderDefaultValue();
             let step = parseFloat(slider.step);
             let min = parseFloat(slider.min);
             let max = parseFloat(slider.max);
@@ -661,6 +672,24 @@ function App() {
   const defaultOptions = {shouldPreventDefault: true, delay: 500,};
   const longPressEvent = useLongPress(onLongPress, onTouchEnd, defaultOptions);
 
+  const getSliderDefaultValue = () => {
+    if (editMode === 5) return hueShift;
+
+    let value;
+    [...colorSource].forEach(color => {
+      if (value) return;
+
+      if (color.id === selectedPoint) {
+        if (editMode === 1) {value = color.threshold.hue; return;}
+        else if (editMode === 2) {value = color.threshold.sat; return;} 
+        else if (editMode === 3) {value = color.threshold.bri; return;}
+        else if (editMode === 4) {value = color.threshold.radius; return;}
+      }
+    })
+
+    return value;
+  }
+
   // ELEMENTS 
   const SliderElement = () => {
     if (selectedPoint === null && editMode !== 5) {return ""}
@@ -704,37 +733,20 @@ function App() {
       else {return 0.01;}
     }
 
-    const defaultValue = () => {
-      if (editMode === 5) return hueShift;
-
-      [...colorSource].forEach(color => {
-        if (color.id === selectedPoint) {
-          if (editMode === 1) return color.threshold.hue
-          else if (editMode === 2) return color.threshold.sat
-          else if (editMode === 3) return color.threshold.bri
-          else if (editMode === 4) return color.threshold.radius 
-        }
-      })
-    };
-
-    return <input type="range" ind={selectedPoint} key={editMode} className='left-row-btn range-toggle-slider ui-btn' min={`${getMinValue()}`} max={`${getMaxValue()}`} step={getStepValue()} onChange={onChangeEvent} defaultValue={defaultValue()}/>;
+    return <input type="range" ind={selectedPoint} key={editMode} className='range-toggle-slider' min={`${getMinValue()}`} max={`${getMaxValue()}`} step={getStepValue()} onChange={onChangeEvent} defaultValue={getSliderDefaultValue()}/>;
   }
 
   // STYLING
-  const getAddButtonClass = () => {
-    let classList = "ui-btn left-row-btn "
-
+  const getAddButtonMode = () => {
     if (selectedPoint !== null) {
-      classList += "delete-btn "
+      return "delete"
     } else {
-      classList += "add-color-sample-btn "
-
       if (editMode === 0) {
-        classList += "btn-active "
+        return "add"
       }
-    }
 
-    return classList;
+      return ""
+    }
   }
 
   const getMaskStyle = () => {
@@ -764,27 +776,54 @@ function App() {
 
   return (
     <div className="App">
-      <button onTouchEnd={chooseImage} className='open-file-btn right-row-btn ui-btn'>OPEN FILE</button>
-      {imageFile !== undefined ? <>
-        <button onTouchEnd={renderButtonEvent} className='right-row-btn ui-btn download-btn'>{showRender ? "download as jpg" : "Render"}</button>
-        <button className="left-row-btn show-hide-canvas-btn ui-btn" onTouchEnd={toggleMaskDisplayMode}>toggle mask</button>
-        <button className={getAddButtonClass()} onTouchEnd={handleAddButton}>{selectedPoint !== null ? "REMOVE COLOR SAMPLE" : "ADD COLOR SAMPLE"}</button>
-        <button className='indicator-toggle-btn right-row-btn ui-btn' onTouchEnd={() => {setShowIndicator(!showIndicator)}}>TOGGLE INDICATOR</button>
-        <button className='right-row-btn ui-btn preview-btn' onTouchEnd={togglePreview}>{showPreview ? "HIDE PREVIEW" : "SHOW PREVIEW"}</button>
-        {selectedPoint === null ? "" : <>
-            <button className={editMode === 1 ? 'left-row-btn ui-btn toggle-hue-btn btn-active' : 'left-row-btn ui-btn toggle-hue-btn'} onTouchEnd={() => {setEditMode(1)}}>HUE</button>
-            <button className={editMode === 2 ? 'left-row-btn ui-btn toggle-sat-btn btn-active' : 'left-row-btn ui-btn toggle-sat-btn'} onTouchEnd={() => {setEditMode(2)}}>SAT</button>
-            <button className={editMode === 3 ? 'left-row-btn ui-btn toggle-bri-btn btn-active' : 'left-row-btn ui-btn toggle-bri-btn'} onTouchEnd={() => {setEditMode(3)}}>BRI</button>
-            <button className={editMode === 4 ? 'left-row-btn ui-btn toggle-rad-btn btn-active' : 'left-row-btn ui-btn toggle-rad-btn'} onTouchEnd={() => {setEditMode(4)}}>RADIUS</button>
-          </>
-        }
-        <SliderElement />
-        {
-          colorSource.length > 0 ? <>
-            <button className={editMode === 5 ? 'left-row-btn ui-btn change-hue-amount-btn btn-active' : 'left-row-btn ui-btn change-hue-amount-btn'} onTouchEnd={() => {setEditMode(5)}}>CHANGE HUE</button>
-          </> : ""
-        }
-      </> : ""}
+      {imageFile === undefined ? <div className='start-hint'>{"Start by opening an image -->"}</div> : ""}
+      <div className='left-side-bar'>
+        <div className='logo-container'>
+          <img src="./logo.svg" alt="" />
+        </div>
+
+        {imageFile !== undefined ? <>
+          <div className='single-btn-group' id='add-btn-group' onClick={handleAddButton} data-mode={getAddButtonMode()}>
+            <img className='img-btn' src={selectedPoint !== null ? "./delete.svg" : "./plus.svg"} alt="" />
+          </div>
+
+          {selectedPoint === null ? "" : 
+            <div className='multi-btn-group'>
+              <img className='add-btn letter-btn' src="./letters/H.svg" alt="" onClick={() => {setEditMode(1)}} data-toggle={editMode === 1 ? "on" : "off"} />
+              <img className='add-btn letter-btn' src="./letters/S.svg" alt="" onClick={() => {setEditMode(2)}} data-toggle={editMode === 2 ? "on" : "off"} />
+              <img className='add-btn letter-btn' src="./letters/L.svg" alt="" onClick={() => {setEditMode(3)}} data-toggle={editMode === 3 ? "on" : "off"} />
+              <div className='multi-btn-group--divider'></div>
+              <img className='add-btn letter-btn' src="./letters/R.svg" alt="" onClick={() => {setEditMode(4)}} data-toggle={editMode === 4 ? "on" : "off"} />
+              <SliderElement />
+            </div>
+          }
+
+          <div className='single-btn-group' style={editMode === 5 ? {background: "black"} : {}} onClick={() => {setEditMode(5)}} >
+            <img className='color-switch-btn img-btn' src={editMode === 5 ? "./color-switch-invert.svg" : "./color-switch.svg"} alt="" />
+            {selectedPoint === null ? <SliderElement /> : ""}
+          </div>
+        </> : ""}
+      </div>
+      
+      <div className='right-side-bar'>
+        <div className='multi-btn-group'>
+          <img className='open-file-btn img-btn' src="./open.svg" alt="" onClick={chooseImage} />
+          {imageFile !== undefined ? <img className='open-file-btn img-btn' style={showRender ? {} : {opacity: 0.2}} src="./download.svg" alt="" onClick={renderButtonEvent} /> : ""}
+        </div>
+        
+        {imageFile !== undefined ? <>
+          <div className='single-btn-group' id='mask-mode-btn-group' onClick={toggleMaskDisplayMode} data-mode={matteMode}>
+            <img className='img-btn' src="./mask-mode.svg" alt=""/>
+          </div>
+          <div className='single-btn-group' onClick={togglePreview} data-toggle={showPreview ? "on" : "off" } >
+            <img className='show-preview-btn img-btn' src="./show-preview.svg" alt=""/>
+          </div>
+          <div className='single-btn-group' onClick={() => {setShowIndicator(!showIndicator)}} data-toggle={showIndicator ? "on" : "off" }>
+            <img className='mask-mode-btn img-btn' src="./indicator.svg" alt=""/>
+          </div>
+        </> : ""}
+      </div>
+
       <div className="indicator-holder-outer" style={canvasTransformStyle} data-image-direction={canvasHorizontal ? "horizontal" : "vertical"}>
         <div className={showIndicator ? "indicator-holder" : "indicator-holder hidden"} style={canvasAttributes ? {aspectRatio: `${canvasAttributes.width} / ${canvasAttributes.height}`} : {}} ref={indicatorHolderRef}>
           {colorSource.map((color, index) => {
