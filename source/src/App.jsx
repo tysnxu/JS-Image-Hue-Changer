@@ -378,8 +378,21 @@ function App() {
       let realWidth = rect.width;
       let realHeight = rect.height;
 
-      let clickXWithoutScale = e.changedTouches[0].clientX - rect.left;
-      let clickYWithoutScale = e.changedTouches[0].clientY - rect.top;
+      let clickXWithoutScale;
+      let clickYWithoutScale;
+
+      if (e.type === "touchend") {
+        // MOBILE CLICK
+        clickXWithoutScale = e.changedTouches[0].clientX - rect.left;
+        clickYWithoutScale = e.changedTouches[0].clientY - rect.top;
+      } else if (e.type === "click") {
+        // DESKTOP CLICK
+        console.log(e)
+        clickXWithoutScale = e.clientX - rect.left;
+        clickYWithoutScale = e.clientY - rect.top;
+      } else {
+        throw new Error("Unknown event type");
+      }
 
       if (clickXWithoutScale > 0 && clickYWithoutScale > 0 && clickXWithoutScale < realWidth && clickYWithoutScale < realHeight) {
         let touchX = Math.floor(clickXWithoutScale * (canvasAttributes.width / realWidth));
@@ -502,11 +515,45 @@ function App() {
     if (showPreview) {setShowPreview(false)}
   }
 
+  const handleCanvasClick = (e) => {
+    // console.log(e)
+    handleCanvasTap(e);
+  }
 
   // ADD LISTENERS FOR MOVING CANVAS
   useEffect(() => {
     document.querySelector(".canvas-mover-layer").addEventListener("touchstart", handleCanvasTouchStart)
   }, [])
+
+  const handleCanvasTap = (e) => {
+    if (showRender) {setShowRender(false); return;};
+    if (showPreview) {setShowPreview(false); return;}
+    if (editMode > 0) {deselectColourSample(); return;}
+
+    if (editMode === 0) {
+      try {
+        let {touchX, touchY} = getTouchPosition(e);
+
+        // Get the pixel color data at the clicked point
+        var pixelData = mainContextRef.current.getImageData(touchX, touchY, 1, 1).data;
+    
+        // Get the RGB color values from the pixel data
+        var red = pixelData[0];
+        var green = pixelData[1];
+        var blue = pixelData[2];
+    
+        if (canvasAttributes.ratio !== 0) {
+          addIndicator(touchX, touchY, [red, green, blue]);
+        }
+    
+        // Display the color in the console
+        console.log(`Clicked color: rgb(${red}, ${green}, ${blue}) @ [${touchX}, ${touchY}]`);
+      } catch (e) {
+        console.log(e)
+        return ;
+      }
+    }
+  }
 
   const handleCanvasTouchStart = (e) => {
     e.preventDefault();
@@ -634,33 +681,7 @@ function App() {
 
       if ((totalDiff * totalDiff) < 3 && canvasAttributes.ratio !== 0) {
         // THIS IS A TAP
-        if (showRender) {setShowRender(false); return;};
-        if (showPreview) {setShowPreview(false); return;}
-        if (editMode > 0) {deselectColourSample(); return;}
-    
-        if (editMode === 0) {
-          try {
-            let {touchX, touchY} = getTouchPosition(e);
-  
-            // Get the pixel color data at the clicked point
-            var pixelData = mainContextRef.current.getImageData(touchX, touchY, 1, 1).data;
-        
-            // Get the RGB color values from the pixel data
-            var red = pixelData[0];
-            var green = pixelData[1];
-            var blue = pixelData[2];
-        
-            if (canvasAttributes.ratio !== 0) {
-              addIndicator(touchX, touchY, [red, green, blue]);
-            }
-        
-            // Display the color in the console
-            console.log(`Clicked color: rgb(${red}, ${green}, ${blue}) @ [${touchX}, ${touchY}]`);
-          } catch (e) {
-            console.log(e)
-            return ;
-          }
-        }
+        handleCanvasTap(e)
       }
     }
   }
@@ -806,8 +827,8 @@ function App() {
       </div>
       
       <div className='right-side-bar'>
-        <div className='multi-btn-group'>
-          <img className='open-file-btn img-btn' src="./icons/open.svg" alt="" onClick={chooseImage} />
+        <div className='multi-btn-group' onClick={chooseImage} >
+          <img className='open-file-btn img-btn' src="./icons/open.svg" alt=""/>
           {imageFile !== undefined ? <img className='open-file-btn img-btn' style={showRender ? {} : {opacity: 0.2}} src="./icons/download.svg" alt="" onClick={renderButtonEvent} /> : ""}
         </div>
         
@@ -836,13 +857,12 @@ function App() {
           })}
         </div>
       </div>
-      <div className='canvas-mover-layer' onTouchMove={handleCanvasTouchMove} onTouchCancel={handleCanvasTouchEnd} onTouchEnd={handleCanvasTouchEnd}></div>
+      <div className='canvas-mover-layer' onClick={handleCanvasClick} onTouchMove={handleCanvasTouchMove} onTouchCancel={handleCanvasTouchEnd} onTouchEnd={handleCanvasTouchEnd}></div>
       <div className="canvas-holder" style={canvasTransformStyle} data-image-direction={canvasHorizontal ? "horizontal" : "vertical"}>
         <div className="canvas-holder-inner" style={canvasAttributes ? {aspectRatio: `${canvasAttributes.width} / ${canvasAttributes.height}`} : {}}>
             <canvas className={showRender ? 'final-render-canvas' : 'final-render-canvas hidden'} onTouchEnd={handleRenderCanvasClick}></canvas>
             <canvas className={showPreview ? 'preview-canvas' : 'preview-canvas hidden'} onTouchEnd={handlePreviewCanvasClick}></canvas>
             <div className={canvasAttributes.width === 0 ? 'mask-mode-hint hidden' : "mask-mode-hint fade-away"} ref={maskModeHintRef}>{getMatteMode()}</div>
-            
             <canvas className='matte-canvas' style={getMaskStyle()} ref={maskCanvasRef}></canvas>
             <canvas className='main-canvas' ref={mainCanvasRef}/>
         </div>
