@@ -779,27 +779,27 @@ function App() {
       {imageFile === undefined ? <div className='start-hint'>{"Start by opening an image -->"}</div> : ""}
       <div className='left-side-bar'>
         <div className='logo-container'>
-          <img src="./logo.svg" alt="" />
+          <img src="./icons/logo.svg" alt="" />
         </div>
 
         {imageFile !== undefined ? <>
           <div className='single-btn-group' id='add-btn-group' onClick={handleAddButton} data-mode={getAddButtonMode()}>
-            <img className='img-btn' src={selectedPoint !== null ? "./delete.svg" : "./plus.svg"} alt="" />
+            <img className='img-btn' src={selectedPoint !== null ? "./icons/delete.svg" : "./icons/plus.svg"} alt="" />
           </div>
 
           {selectedPoint === null ? "" : 
             <div className='multi-btn-group'>
-              <img className='add-btn letter-btn' src="./letters/H.svg" alt="" onClick={() => {setEditMode(1)}} data-toggle={editMode === 1 ? "on" : "off"} />
-              <img className='add-btn letter-btn' src="./letters/S.svg" alt="" onClick={() => {setEditMode(2)}} data-toggle={editMode === 2 ? "on" : "off"} />
-              <img className='add-btn letter-btn' src="./letters/L.svg" alt="" onClick={() => {setEditMode(3)}} data-toggle={editMode === 3 ? "on" : "off"} />
+              <img className='add-btn letter-btn' src="./icons/letters/H.svg" alt="" onClick={() => {setEditMode(1)}} data-toggle={editMode === 1 ? "on" : "off"} />
+              <img className='add-btn letter-btn' src="./icons/letters/S.svg" alt="" onClick={() => {setEditMode(2)}} data-toggle={editMode === 2 ? "on" : "off"} />
+              <img className='add-btn letter-btn' src="./icons/letters/L.svg" alt="" onClick={() => {setEditMode(3)}} data-toggle={editMode === 3 ? "on" : "off"} />
               <div className='multi-btn-group--divider'></div>
-              <img className='add-btn letter-btn' src="./letters/R.svg" alt="" onClick={() => {setEditMode(4)}} data-toggle={editMode === 4 ? "on" : "off"} />
+              <img className='add-btn letter-btn' src="./icons/letters/R.svg" alt="" onClick={() => {setEditMode(4)}} data-toggle={editMode === 4 ? "on" : "off"} />
               <SliderElement />
             </div>
           }
 
           <div className='single-btn-group' style={editMode === 5 ? {background: "black"} : {}} onClick={() => {setEditMode(5)}} >
-            <img className='color-switch-btn img-btn' src={editMode === 5 ? "./color-switch-invert.svg" : "./color-switch.svg"} alt="" />
+            <img className='color-switch-btn img-btn' src={editMode === 5 ? "./icons/color-switch-invert.svg" : "./icons/color-switch.svg"} alt="" />
             {selectedPoint === null ? <SliderElement /> : ""}
           </div>
         </> : ""}
@@ -807,19 +807,19 @@ function App() {
       
       <div className='right-side-bar'>
         <div className='multi-btn-group'>
-          <img className='open-file-btn img-btn' src="./open.svg" alt="" onClick={chooseImage} />
-          {imageFile !== undefined ? <img className='open-file-btn img-btn' style={showRender ? {} : {opacity: 0.2}} src="./download.svg" alt="" onClick={renderButtonEvent} /> : ""}
+          <img className='open-file-btn img-btn' src="./icons/open.svg" alt="" onClick={chooseImage} />
+          {imageFile !== undefined ? <img className='open-file-btn img-btn' style={showRender ? {} : {opacity: 0.2}} src="./icons/download.svg" alt="" onClick={renderButtonEvent} /> : ""}
         </div>
         
         {imageFile !== undefined ? <>
           <div className='single-btn-group' id='mask-mode-btn-group' onClick={toggleMaskDisplayMode} data-mode={matteMode}>
-            <img className='img-btn' src="./mask-mode.svg" alt=""/>
+            <img className='img-btn' src="./icons/mask-mode.svg" alt=""/>
           </div>
           <div className='single-btn-group' onClick={togglePreview} data-toggle={showPreview ? "on" : "off" } >
-            <img className='show-preview-btn img-btn' src="./show-preview.svg" alt=""/>
+            <img className='show-preview-btn img-btn' src="./icons/show-preview.svg" alt=""/>
           </div>
           <div className='single-btn-group' onClick={() => {setShowIndicator(!showIndicator)}} data-toggle={showIndicator ? "on" : "off" }>
-            <img className='mask-mode-btn img-btn' src="./indicator.svg" alt=""/>
+            <img className='mask-mode-btn img-btn' src="./icons/indicator.svg" alt=""/>
           </div>
         </> : ""}
       </div>
