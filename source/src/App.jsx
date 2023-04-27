@@ -49,11 +49,14 @@ function App() {
   useEffect(() => {
     if (canvasAttributes.width !== 0) {
       updateMaskImage()
-      if (colorSource.length !== 0) {
-        setSelectedPoint(colorSource[colorSource.length-1].id)
-      } else {
-        setEditMode(0);
-        setSelectedPoint(null);
+
+      if (selectedPoint === null) {
+        if (colorSource.length !== 0) {
+          setSelectedPoint(colorSource[colorSource.length-1].id)
+        } else {
+          setEditMode(0);
+          setSelectedPoint(null);
+        }
       }
   }}, [colorSource])
 
@@ -387,7 +390,6 @@ function App() {
         clickYWithoutScale = e.changedTouches[0].clientY - rect.top;
       } else if (e.type === "click") {
         // DESKTOP CLICK
-        console.log(e)
         clickXWithoutScale = e.clientX - rect.left;
         clickYWithoutScale = e.clientY - rect.top;
       } else {
@@ -516,7 +518,6 @@ function App() {
   }
 
   const handleCanvasClick = (e) => {
-    // console.log(e)
     handleCanvasTap(e);
   }
 
