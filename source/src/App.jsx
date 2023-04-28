@@ -34,7 +34,7 @@ function App() {
 
   const [matteMode, setMatteMode] = useState(2); // 0: HIDDEN | 1: LIGHTEN | 2 : MULTIPLY | 3 : NORMAL (BW)
   const [editMode, setEditMode] = useState(0)  // -1: NO INTERACTION | 0: ADD | 1: CHANGE HUE | 2: CHANGE SATURATION | 3: CHANGE BRIGHTNESS | 4. CHANGE RADIUS | 5. CHANGE SHIFTED HUE
-  const [hueShift, setHueShift] = useState(221);
+  const [hueShift, setHueShift] = useState(211);
 
   const [selectedPoint, setSelectedPoint] = useState(null);
   const [showIndicator, setShowIndicator] = useState(true);
