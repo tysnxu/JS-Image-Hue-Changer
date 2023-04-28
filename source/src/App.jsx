@@ -22,10 +22,10 @@ function App() {
   // }
 
   const defaultThresholdConfig = {
-    hue: 0.1,  // DEFAULT VALUES
+    hue: 0.05,  // DEFAULT VALUES
     sat: 0.8,
     bri: 0.9,
-    radius: 120,
+    radius: 150,
 }
 
   const [canvasAttributes, setCanvasAttributes] = useState({width: 0, height: 0, ratio: 0,})
@@ -127,6 +127,16 @@ function App() {
     mainContextRef.current = mainCanvasRef.current.getContext('2d', {willReadFrequently : true});
     canvasImageRef.current.onload = imageOnLoad;
   }, []);
+  
+  // UPDATE HINT TEXT WHEN 
+  useEffect(() => {
+    if (maskModeHintRef.current && canvasAttributes.width !== 0) {
+      maskModeHintRef.current.classList.remove("fade-away");
+      maskModeHintRef.current.offsetWidth;
+      maskModeHintRef.current.classList.add("fade-away");
+    }
+  }, [matteMode])
+
 
   const renderFinalImage = useCallback(() => {
     if (canvasImageRef.current === null) return;
@@ -781,18 +791,10 @@ function App() {
     if (matteMode === 0) return "hidden"
     else if (matteMode === 1) return "lighten"
     else if (matteMode === 2) return "multiply"
-    else if (matteMode === 3) return "BW"
+    else if (matteMode === 3) return "normal"
   }
 
   const canvasTransformStyle = {scale: `${canvasTransform.scale}`, transform: `translate(${canvasTransform.xOffset}px, ${canvasTransform.yOffset}px)`}
-
-  useEffect(() => {
-    if (maskModeHintRef.current && canvasAttributes.width !== 0) {
-      maskModeHintRef.current.classList.remove("fade-away");
-      maskModeHintRef.current.offsetWidth;
-      maskModeHintRef.current.classList.add("fade-away");
-    }
-  }, [matteMode])
 
   return (
     <div className="App">
@@ -818,7 +820,7 @@ function App() {
             </div>
           }
 
-          <div className='single-btn-group' style={editMode === 5 ? {background: "black"} : {}} onClick={() => {setEditMode(5)}} >
+          <div className='single-btn-group' style={editMode === 5 ? {background: "black"} : {}} onClick={() => {editMode === 5 ? setEditMode(-1) : setEditMode(5)}} >
             <img className='color-switch-btn img-btn' src={editMode === 5 ? "./icons/color-switch-invert.svg" : "./icons/color-switch.svg"} alt="" />
             {selectedPoint === null ? <SliderElement /> : ""}
           </div>
@@ -834,6 +836,7 @@ function App() {
         {imageFile !== undefined ? <>
           <div className='single-btn-group' id='mask-mode-btn-group' onClick={toggleMaskDisplayMode} data-mode={matteMode}>
             <img className='img-btn' src="./icons/mask-mode.svg" alt=""/>
+            <div className={canvasAttributes.width === 0 ? 'mask-mode-hint hidden' : "mask-mode-hint fade-away"} ref={maskModeHintRef}>{getMatteMode()}</div>
           </div>
           <div className='single-btn-group' onClick={togglePreview} data-toggle={showPreview ? "on" : "off" } >
             <img className='show-preview-btn img-btn' src="./icons/show-preview.svg" alt=""/>
@@ -861,7 +864,6 @@ function App() {
         <div className="canvas-holder-inner" style={canvasAttributes ? {aspectRatio: `${canvasAttributes.width} / ${canvasAttributes.height}`} : {}}>
             <canvas className={showRender ? 'final-render-canvas' : 'final-render-canvas hidden'} onTouchEnd={handleRenderCanvasClick}></canvas>
             <canvas className={showPreview ? 'preview-canvas' : 'preview-canvas hidden'} onTouchEnd={handlePreviewCanvasClick}></canvas>
-            <div className={canvasAttributes.width === 0 ? 'mask-mode-hint hidden' : "mask-mode-hint fade-away"} ref={maskModeHintRef}>{getMatteMode()}</div>
             <canvas className='matte-canvas' style={getMaskStyle()} ref={maskCanvasRef}></canvas>
             <canvas className='main-canvas' ref={mainCanvasRef}/>
         </div>

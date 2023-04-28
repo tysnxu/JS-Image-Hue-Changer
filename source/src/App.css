@@ -15,6 +15,8 @@ body{
   --side-bar-inter-group-gap: 0.8rem;
 
   --btn-group-top-btm-padding: 0.8rem;
+
+  --single-btn-group-height: 3.2rem;
   /* --btn-group-left-right-padding: 0rem; */
 }
 
@@ -75,20 +77,26 @@ main-canvas: 0
 }
 
 .mask-mode-hint{
+  --padding-top-bottom: 0.7rem;
+
   position: absolute;
 
-  padding: 0.4rem 0.5rem;
+  padding: var(--padding-top-bottom) 1rem;
 
-  bottom: 1rem;
-  left: 1rem;
+  top: 0;
+  left: 0;
+
+  transform: translateX( calc(-100% - 1rem) );
+  height: calc(var(--single-btn-group-height) - var(--padding-top-bottom) * 2);
 
   opacity: 1;
 
   border-radius: 0.2rem;
 
   z-index: 6; 
-  background: white;
+  background: rgb(200 200 200 / 25%);
 }
+
 
 .start-hint{
   position: absolute;
@@ -264,8 +272,11 @@ main-canvas: 0
 }
 
 #mask-mode-btn-group[data-mode="2"]{
+  background-color: black;
+}
+
+#mask-mode-btn-group[data-mode="2"] > img{
   filter: invert(1);
-  box-shadow: 0 4px 4px white;
 }
 
 
@@ -280,7 +291,7 @@ main-canvas: 0
 
 .single-btn-group{
   padding: 0;
-  height: 3.2rem;
+  height: var(--single-btn-group-height);
 }
 
 .single-btn-group > *{
@@ -305,9 +316,6 @@ main-canvas: 0
 
 .letter-btn[data-toggle="off"]{
   filter: brightness(0);
-}
-
-.letter-btn[data-toggle="on"]{
 }
 
 #add-btn-group[data-mode="add"]{  /* ADD INDICATOR MODE */
