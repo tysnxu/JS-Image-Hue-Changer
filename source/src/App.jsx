@@ -615,7 +615,7 @@ function App() {
             let min = parseFloat(slider.min);
             let max = parseFloat(slider.max);
   
-            let stepsChanged = parseInt((touch.clientX - startTouchX) / 20)
+            let stepsChanged = parseInt((touch.clientX - startTouchX) / 30)
             let newValue = Math.min(max, Math.max(min, value + step * stepsChanged));
 
             if (newValue == value) return;
