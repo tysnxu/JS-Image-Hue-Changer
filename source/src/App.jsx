@@ -21,6 +21,13 @@ function App() {
   //     }
   // }
 
+  const defaultThresholdConfig = {
+    hue: 0.1,  // DEFAULT VALUES
+    sat: 0.8,
+    bri: 0.9,
+    radius: 120,
+}
+
   const [canvasAttributes, setCanvasAttributes] = useState({width: 0, height: 0, ratio: 0,})
   const [canvasHorizontal, setCanvasHorizontal] = useState(false);
   const [imageFile, setImageFile] = useState();
@@ -202,7 +209,7 @@ function App() {
     var imageData = mainContextRef.current.getImageData(0, 0, canvasAttributes.width, canvasAttributes.height);
     var data = imageData.data;
 
-    var newMask = new Array(canvasAttributes.width * canvasAttributes.height);
+    // var newMask = new Array(canvasAttributes.width * canvasAttributes.height);
 
     // FILLING THE CANVAS --> THIS MAKES THE PIXEL UPDATING WAY FASTER THAN WITH THE IMAGE NOT INITIALIZED
     let ctx = document.querySelector(".matte-canvas").getContext('2d', {willReadFrequently : true});
@@ -228,14 +235,12 @@ function App() {
       let startPixelY = Math.max(colourCenterY - radius - 1, 0);
       let endPixelY = Math.min(colourCenterY + radius + 1, canvasAttributes.height);
 
-      let radiusPwr = radius * radius;
-
+      // FOR PIXELS AROUND THE COLOR SPOT
       for (let pixelX = startPixelX; pixelX < endPixelX ; pixelX++) {
         for (let pixelY = startPixelY; pixelY < endPixelY ; pixelY++) {
-          let distPwr = powerOfDistance(pixelX, pixelY, colourCenterX, colourCenterY);
           
           // 1. SEE IF PIXEL IS IN RANGE
-          if (distPwr < radiusPwr) {
+          if (inRange(pixelX, pixelY, colourCenterX, colourCenterY, radius)) {
             // 2. SEE IF COLOR FITS REQUIREMENT
             let index = xyToArrayIndex(pixelX, pixelY, canvasAttributes.width) * 4;
             let pixelColorRGB = [data[index], data[index + 1], data[index + 2]];
@@ -252,15 +257,22 @@ function App() {
             let briDiff = Math.abs(targetHSL[2] - pixelColorHSL[2]);
             if (briDiff > colorPoint.threshold.bri) { continue; }
 
-            let pixelIndex = xyToArrayIndex(pixelX, pixelY, canvasAttributes.width)
-            let alpha = lerp(255, 100, (distPwr / radiusPwr));
+            // PIXEL FITS REQUIREMENT
+            // let pixelIndex = xyToArrayIndex(pixelX, pixelY, canvasAttributes.width)
 
-            let originalValue = newMask[pixelIndex] | 0;
+            // REMOVING THE FALLOFF
+            // let alpha = lerp(255, 100, (distPwr / radiusPwr));
+            
+            // newMask[pixelIndex] = alpha;
+            changePixelToColour(ctx, [255, 255, 255, 255], pixelX, pixelY)
 
-            if (alpha > originalValue) {
-                newMask[pixelIndex] = alpha;
-                changePixelToColour(ctx, [alpha, alpha, alpha, 255], pixelX, pixelY)
-            }
+            // // IN CASE THE PIXEL HAS BEEN MODIFIED BY OTHER COLOR PICKERS
+            // let originalValue = newMask[pixelIndex] || 0;
+
+            // if (alpha > originalValue) {
+            //     newMask[pixelIndex] = alpha;
+            //     changePixelToColour(ctx, [alpha, alpha, alpha, 255], pixelX, pixelY)
+            // }
             }
           }
         }
@@ -417,12 +429,7 @@ function App() {
             id: newID,
             position: [x, y],
             color: [colorHSL[0], colorHSL[1], colorHSL[2]],
-            threshold: {
-                hue: 0.5,  // DEFAULT VALUES
-                sat: 0.8,
-                bri: 0.9,
-                radius: 120,
-            }
+            threshold: defaultThresholdConfig,
           }
       ])
 
@@ -542,13 +549,15 @@ function App() {
         var red = pixelData[0];
         var green = pixelData[1];
         var blue = pixelData[2];
+
+        var hslValue = rgbToHsl(...pixelData)
     
         if (canvasAttributes.ratio !== 0) {
           addIndicator(touchX, touchY, [red, green, blue]);
         }
     
         // Display the color in the console
-        console.log(`Clicked color: rgb(${red}, ${green}, ${blue}) @ [${touchX}, ${touchY}]`);
+        console.log(`Clicked color: rgb(${red}, ${green}, ${blue}) hsl(${hslValue}) @ [${touchX}, ${touchY}]`);
       } catch (e) {
         console.log(e)
         return ;
@@ -563,6 +572,25 @@ function App() {
       e.target.removeAttribute("data-initial-touch")
     } else {
       e.target.setAttribute("data-initial-touch", `${e.touches[0].clientX}, ${e.touches[0].clientY}`)
+    }
+  }
+
+  const updateThreshold = (newValue) => {
+    if (editMode === 5) {
+      setHueShift(newValue);
+    } else {
+      const newColourSource = colorSource.map((value, index) => {
+        if (value.id === selectedPoint) {
+          if (editMode === 1) value.threshold.hue = newValue; 
+          else if (editMode === 2) value.threshold.sat = newValue; 
+          else if (editMode === 3) value.threshold.bri = newValue; 
+          else if (editMode === 4) value.threshold.radius = newValue; 
+        }
+
+        return value;
+      });
+
+      setColorSource(newColourSource);
     }
   }
 
@@ -591,23 +619,8 @@ function App() {
             let newValue = Math.min(max, Math.max(min, value + step * stepsChanged));
 
             if (newValue == value) return;
-  
-            if (editMode === 5) {
-              setHueShift(newValue);
-            } else {
-              const newColourSource = colorSource.map((value, index) => {
-                if (value.id === selectedPoint) {
-                  if (editMode === 1) value.threshold.hue = newValue; 
-                  else if (editMode === 2) value.threshold.sat = newValue; 
-                  else if (editMode === 3) value.threshold.bri = newValue; 
-                  else if (editMode === 4) value.threshold.radius = newValue; 
-                }
-  
-                return value;
-              });
-  
-              setColorSource(newColourSource);
-            }
+
+            updateThreshold(newValue);
           }
         } else {
           setCanvasTransform(canvasTransform => {
@@ -717,24 +730,9 @@ function App() {
     if (selectedPoint === null && editMode !== 5) {return ""}
 
     const onChangeEvent = (e) => {
-      if (editMode === 5) {
-        setHueShift(e.target.value);
-      } else {
-        const newColourSource = colorSource.map((value, index) => {
-          if (value.id === selectedPoint) {
-            if (editMode === 1) value.threshold.hue = e.target.value; 
-            else if (editMode === 2) value.threshold.sat = e.target.value; 
-            else if (editMode === 3) value.threshold.bri = e.target.value; 
-            else if (editMode === 4) value.threshold.radius = e.target.value; 
-          }
+      let newValue = e.target.value;
 
-          return value;
-        });
-
-        setColorSource(newColourSource);
-      }
-
-      updateMaskImage()
+      updateThreshold(newValue);
     }
 
     const getMinValue = () => {
